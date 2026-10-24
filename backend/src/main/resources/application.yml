@@ -1,0 +1,61 @@
+# Configuración por defecto = desarrollo local con H2 en archivo (no requiere instalar nada).
+spring:
+  application:
+    name: torneos
+  datasource:
+    url: jdbc:h2:file:./data/torneos;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    username: sa
+    password: ""
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_batch_fetch_size: 100
+        jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+  jackson:
+    default-property-inclusion: always
+    deserialization:
+      # Jackson 3 rechaza por defecto campos numéricos/booleanos ausentes; aquí valen 0/false
+      fail-on-null-for-primitives: false
+
+server:
+  port: ${PORT:8080}
+  forward-headers-strategy: framework
+  compression:
+    enabled: true
+    mime-types: application/json
+
+app:
+  cors:
+    origins: ${CORS_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
+  jwt:
+    secret: ${JWT_SECRET:solo-para-desarrollo-cambiar-en-produccion-0123456789}
+    organizer-hours: 168
+    referee-hours: 12
+  demo:
+    # Crea un organizador de prueba y torneos de varios deportes si la base está vacía
+    enabled: ${DEMO_ENABLED:true}
+    # Simula partidos en vivo en los torneos demo para ver el tiempo real funcionando
+    simulator: ${DEMO_SIMULATOR:true}
+    tick-ms: ${DEMO_TICK_MS:6000}
+
+logging:
+  level:
+    org.hibernate.orm.deprecation: error
+
+---
+# Producción: PostgreSQL (por ejemplo Neon) con credenciales por variables de entorno.
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
+    hikari:
+      maximum-pool-size: 5
