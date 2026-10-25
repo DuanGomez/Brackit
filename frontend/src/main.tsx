@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-// Primero los estilos globales: las hojas de cada componente deben poder sobrescribirlos
-import './styles/global.css';
+// Primero los estilos base: las hojas de cada pantalla deben poder sobrescribirlos
+import './styles/base.css';
 import App from './App';
 
 createRoot(document.getElementById('root')!).render(

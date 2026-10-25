@@ -1,41 +1,40 @@
 import { lazy, Suspense, type ReactNode } from 'react';
-import { createBrowserRouter, Navigate, RouterProvider, useLocation } from 'react-router';
-import { AuthProvider, useAuth } from './auth/AuthContext';
-import { Layout } from './components/Layout';
-import { LoginPage, RefereeLoginPage, RegisterPage } from './pages/AuthPages';
-import Home from './pages/Home';
-import MatchPage from './pages/MatchPage';
-import TournamentPage from './pages/TournamentPage';
+import { createBrowserRouter, RouterProvider } from 'react-router';
+import { AuthProvider } from './auth/AuthContext';
+import { LoginPage, RegisterPage } from './pages/site/Auth';
+import Landing from './pages/site/Landing';
+import { PublicMatchPage, PublicOrgPage, PublicTournamentPage } from './pages/public/PublicPages';
 
-// El panel y la consola de árbitro solo los usa quien inicia sesión: se cargan aparte
-const RefereeConsole = lazy(() => import('./pages/arbitro/RefereeConsole'));
-const RefereeMatches = lazy(() => import('./pages/arbitro/RefereeMatches'));
-const Dashboard = lazy(() => import('./pages/panel/Dashboard'));
-const ManageTournament = lazy(() => import('./pages/panel/ManageTournament'));
-const NewTournament = lazy(() => import('./pages/panel/NewTournament'));
+// El panel solo lo usa quien inicia sesión: se carga aparte para que el sitio y las páginas públicas abran rápido
+const AppLayout = lazy(() => import('./pages/app/AppLayout'));
+const AppHome = lazy(() => import('./pages/app/AppLayout').then((m) => ({ default: m.AppHome })));
+const CreateOrg = lazy(() => import('./pages/app/CreateOrg'));
+const Dashboard = lazy(() => import('./pages/app/Dashboard'));
+const Tournaments = lazy(() => import('./pages/app/Tournaments'));
+const NewTournament = lazy(() => import('./pages/app/NewTournament'));
+const TournamentDetail = lazy(() => import('./pages/app/TournamentDetail'));
+const Calendar = lazy(() => import('./pages/app/Calendar'));
+const Matches = lazy(() => import('./pages/app/Matches'));
+const MatchAdmin = lazy(() => import('./pages/app/MatchAdmin'));
+const Console = lazy(() => import('./pages/app/Console'));
+const Teams = lazy(() => import('./pages/app/Teams'));
+const Venues = lazy(() => import('./pages/app/Venues'));
+const Members = lazy(() => import('./pages/app/Members'));
+const Referees = lazy(() => import('./pages/app/Members').then((m) => ({ default: m.Referees })));
+const Settings = lazy(() => import('./pages/app/Settings'));
+const PublicPageSettings = lazy(() => import('./pages/app/Settings').then((m) => ({ default: m.PublicPageSettings })));
 
 function Lazy({ children }: { children: ReactNode }) {
-  return <Suspense fallback={<div className="container page"><div className="skeleton" style={{ height: 280 }} /></div>}>{children}</Suspense>;
-}
-
-function RequireOrganizer({ children }: { children: ReactNode }) {
-  const { isOrganizer } = useAuth();
-  const location = useLocation();
-  return isOrganizer ? <Lazy>{children}</Lazy> : <Navigate to="/ingresar" replace state={{ from: location.pathname }} />;
-}
-
-/** Consola de partido: árbitro con PIN o el organizador. */
-function RequireOperator({ children }: { children: ReactNode }) {
-  const { session } = useAuth();
-  return session ? <Lazy>{children}</Lazy> : <Navigate to="/arbitro" replace />;
+  return <Suspense fallback={<div style={{ minHeight: '100dvh', background: 'var(--bg)' }} />}>{children}</Suspense>;
 }
 
 function NotFound() {
   return (
-    <div className="container page">
-      <div className="card empty">
-        <h3>Esta página no existe</h3>
-        <p>Revisa el enlace o vuelve al inicio.</p>
+    <div style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', padding: 20 }}>
+      <div className="card card-pad" style={{ textAlign: 'center', maxWidth: 380 }}>
+        <h1 className="h2">Esta página no existe</h1>
+        <p className="muted" style={{ margin: '8px 0 16px' }}>Revisa el enlace o vuelve al inicio.</p>
+        <a className="btn" href={import.meta.env.BASE_URL}>Ir al inicio</a>
       </div>
     </div>
   );
@@ -43,23 +42,35 @@ function NotFound() {
 
 const router = createBrowserRouter(
   [
+    { path: '/', element: <Landing /> },
+    { path: '/ingresar', element: <LoginPage /> },
+    { path: '/registro', element: <RegisterPage /> },
+    { path: '/l/:org', element: <PublicOrgPage /> },
+    { path: '/l/:org/partido/:id', element: <PublicMatchPage /> },
+    { path: '/l/:org/:slug', element: <PublicTournamentPage /> },
+    { path: '/app', element: <Lazy><AppHome /></Lazy> },
+    { path: '/app/nueva', element: <Lazy><CreateOrg /></Lazy> },
     {
-      element: <Layout />,
+      path: '/app/:org',
+      element: <Lazy><AppLayout /></Lazy>,
       children: [
-        { path: '/', element: <Home /> },
-        { path: '/t/:slug', element: <TournamentPage /> },
-        { path: '/t/:slug/partido/:id', element: <MatchPage /> },
-        { path: '/ingresar', element: <LoginPage /> },
-        { path: '/registro', element: <RegisterPage /> },
-        { path: '/arbitro', element: <RefereeLoginPage /> },
-        { path: '/arbitro/partidos', element: <RequireOperator><RefereeMatches /></RequireOperator> },
-        { path: '/arbitro/partido/:id', element: <RequireOperator><RefereeConsole /></RequireOperator> },
-        { path: '/panel', element: <RequireOrganizer><Dashboard /></RequireOrganizer> },
-        { path: '/panel/nuevo', element: <RequireOrganizer><NewTournament /></RequireOrganizer> },
-        { path: '/panel/t/:id', element: <RequireOrganizer><ManageTournament /></RequireOrganizer> },
-        { path: '*', element: <NotFound /> },
+        { index: true, element: <Lazy><Dashboard /></Lazy> },
+        { path: 'torneos', element: <Lazy><Tournaments /></Lazy> },
+        { path: 'torneos/nuevo', element: <Lazy><NewTournament /></Lazy> },
+        { path: 'torneos/:id', element: <Lazy><TournamentDetail /></Lazy> },
+        { path: 'calendario', element: <Lazy><Calendar /></Lazy> },
+        { path: 'partidos', element: <Lazy><Matches /></Lazy> },
+        { path: 'partido/:id', element: <Lazy><MatchAdmin /></Lazy> },
+        { path: 'consola/:id', element: <Lazy><Console /></Lazy> },
+        { path: 'equipos', element: <Lazy><Teams /></Lazy> },
+        { path: 'canchas', element: <Lazy><Venues /></Lazy> },
+        { path: 'arbitros', element: <Lazy><Referees /></Lazy> },
+        { path: 'miembros', element: <Lazy><Members /></Lazy> },
+        { path: 'publica', element: <Lazy><PublicPageSettings /></Lazy> },
+        { path: 'ajustes', element: <Lazy><Settings /></Lazy> },
       ],
     },
+    { path: '*', element: <NotFound /> },
   ],
   { basename: import.meta.env.BASE_URL.replace(/\/$/, '') || '/' },
 );

@@ -4,13 +4,13 @@ import { liveClockLabel, minutesBeforePeriod } from './clock';
 
 const sport = (over: Partial<Sport>): Sport => ({
   code: 'FUTBOL', label: 'Fútbol', scoring: 'GOALS', periods: 2, periodMinutes: 45, setsToWin: 0, setTarget: 0,
-  lastSetTarget: 0, allowsDraw: true, winPoints: 3, drawPoints: 1, lossPoints: 0, scorersTitle: '', scoreUnit: '',
+  lastSetTarget: 0, allowsDraw: true, winPoints: 3, drawPoints: 1, lossPoints: 0, defaultBlockMinutes: 120, scorersTitle: '', scoreUnit: '',
   participantLabel: 'Equipo', events: [], ...over,
 });
 
 const match = (over: Partial<Match>): Match => ({
   id: 1, stage: 'LEAGUE', round: 1, roundLabel: 'Jornada 1', group: null, position: null, homeId: 1, awayId: 2,
-  scheduledAt: null, venue: null, status: 'LIVE', period: 1, periodLabel: '1T', periodStartedAt: '2026-10-25T15:00:00Z',
+  scheduledAt: null, courtId: null, courtName: null, venueName: null, refereeId: null, refereeName: null, status: 'LIVE', cancelReason: null, period: 1, periodLabel: '1T', periodStartedAt: '2026-10-25T15:00:00Z',
   clockSpeed: 1, homeScore: 0, awayScore: 0, homePenalties: null, awayPenalties: null, sets: [], winnerId: null, bye: false,
   ...over,
 });

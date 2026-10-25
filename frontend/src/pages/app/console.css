@@ -1,0 +1,40 @@
+/* Consola del árbitro: siempre oscura (se lee mejor al sol y gasta menos batería). */
+.console { min-height: 100dvh; background: var(--bg); color: var(--text); max-width: 560px; margin: 0 auto; padding: 18px 16px 28px; display: flex; flex-direction: column; gap: 14px; }
+.console-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+.console-top span { text-align: right; }
+.console-back { display: inline-flex; align-items: center; gap: 4px; font-size: 16px; font-weight: 500; white-space: nowrap; }
+.console-score { border-radius: 26px; background: var(--surface); padding: 18px 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.console-teams { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; width: 100%; }
+.console-teams > div { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; min-width: 0; }
+.console-teams b { font-size: 14px; font-weight: 600; line-height: 1.2; }
+.console-teams strong { font-size: 58px; font-weight: 700; letter-spacing: -0.05em; line-height: 1; }
+.console-teams strong span { color: var(--faint); padding: 0 6px; font-weight: 500; }
+.console-clock { font-size: 30px; font-weight: 600; letter-spacing: -0.02em; }
+.console-sets { display: flex; gap: 8px; font-size: 14px; color: var(--muted); }
+.console-sets .current { color: var(--s-live); font-weight: 700; }
+.console-start { height: 60px; font-size: 18px; }
+.console-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.console-col { display: flex; flex-direction: column; gap: 10px; }
+.console-main { height: 88px; border-radius: 22px; border: 0; font-size: 22px; font-weight: 700; cursor: pointer; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 2px; transition: transform 0.08s, opacity 0.15s; }
+.console-main small { font-size: 12px; font-weight: 600; opacity: 0.75; }
+.console-main:active, .console-point:active, .console-extra:active { transform: scale(0.97); }
+.console-main:disabled, .console-point:disabled, .console-extra:disabled { opacity: 0.55; }
+.console-extra { height: 52px; border-radius: 16px; border: 0; background: var(--surface); color: var(--text); font-size: 15px; font-weight: 600; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 8px; }
+.card-mark { width: 12px; height: 16px; border-radius: 3px; }
+.console-point { min-height: 180px; border-radius: 24px; border: 0; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 16px; }
+.console-point span { font-size: 24px; font-weight: 750; }
+.console-point small { font-size: 14px; font-weight: 550; opacity: 0.8; text-align: center; }
+.console-log { border-radius: 20px; background: var(--surface); padding: 4px 16px; }
+.console-log div { display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; padding: 11px 0; font-size: 14px; border-top: 1px solid var(--line); }
+.console-log div:first-child { border-top: 0; }
+.console-log div span:first-child, .console-log div span:last-child { color: var(--muted); }
+.console-bar { display: flex; gap: 10px; flex-wrap: wrap; }
+.console-bar .btn { flex: 1; min-width: 130px; height: 50px; font-size: 15px; }
+.console-done { border-radius: 22px; background: var(--surface); padding: 24px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+.player-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.player-btn { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--line-strong);
+  background: var(--surface); color: var(--text); text-align: left; font-size: 14.5px; font-weight: 550; cursor: pointer; }
+.player-btn span { width: 28px; height: 28px; border-radius: 8px; background: var(--fill); display: grid; place-items: center; font-size: 13px; font-weight: 700; flex: none; }
+.player-btn:hover { background: var(--surface-2); }

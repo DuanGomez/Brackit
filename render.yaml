@@ -20,7 +20,7 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: CORS_ORIGINS
-        value: https://duangomez.github.io
+        value: https://brackit.pages.dev,https://*.brackit.pages.dev,https://duangomez.github.io
       - key: DEMO_ENABLED
         value: "true"
       - key: DEMO_SIMULATOR
