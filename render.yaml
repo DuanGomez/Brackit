@@ -5,6 +5,7 @@ services:
     runtime: docker
     rootDir: backend
     plan: free
+    region: ohio
     healthCheckPath: /api/health
     envVars:
       - key: SPRING_PROFILES_ACTIVE
