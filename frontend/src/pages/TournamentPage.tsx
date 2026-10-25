@@ -38,7 +38,7 @@ export default function TournamentPage() {
   const now = useNow(hasLive);
 
   useEffect(() => {
-    if (t) document.title = `${t.name} · en vivo`;
+    if (t) document.title = `${t.name} · Brackit`;
   }, [t]);
 
   if (loading) return <div className="container page"><div className="skeleton" style={{ height: 280 }} /></div>;

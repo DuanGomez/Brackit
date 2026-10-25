@@ -1,7 +1,7 @@
 # Blueprint de Render para el API. La base de datos PostgreSQL vive en Neon (plan gratuito).
 services:
   - type: web
-    name: torneos-api
+    name: brackit-api
     runtime: docker
     rootDir: backend
     plan: free

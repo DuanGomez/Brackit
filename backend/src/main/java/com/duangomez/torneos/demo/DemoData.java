@@ -10,7 +10,7 @@ import java.util.Random;
 /** Datos de los torneos de demostración (todos ficticios). */
 public final class DemoData {
 
-    public static final String EMAIL = "demo@torneos.app";
+    public static final String EMAIL = "demo@brackit.app";
     public static final String PASSWORD = "demo1234";
     /** PIN de árbitro de todos los torneos demo; se muestra en la pantalla de ingreso. */
     public static final String REFEREE_PIN = "246810";

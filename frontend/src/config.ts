@@ -2,15 +2,15 @@
 export const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:8080').replace(/\/$/, '');
 export const WS_URL = API_URL.replace(/^http/, 'ws') + '/ws';
 
-/** Marca provisional: el nombre definitivo se decide al final y solo se cambia aquí. */
+/** Marca del producto (nombre y lema usados en toda la interfaz). */
 export const BRAND = {
-  name: 'Torneos',
+  name: 'Brackit',
   tagline: 'Organiza torneos de cualquier deporte y síguelos en vivo.',
 };
 
 /** Credenciales públicas de la demo (las crea el backend al arrancar). */
 export const DEMO = {
-  email: 'demo@torneos.app',
+  email: 'demo@brackit.app',
   password: 'demo1234',
   pin: '246810',
 };

@@ -1,8 +1,6 @@
-# Torneos
+# Brackit
 
 Plataforma para organizar torneos de **cualquier deporte** y seguirlos **en vivo**: el calendario se genera solo, el árbitro registra el marcador desde el celular y el público ve el resultado, la tabla, las llaves y los goleadores actualizarse al instante.
-
-> El nombre del producto es provisional: se cambia en un solo lugar (`frontend/src/config.ts`).
 
 ## Qué hace
 
@@ -62,7 +60,7 @@ cd frontend && npm install && npm run dev # http://localhost:5173
 ```
 
 Accesos de la demo:
-- **Organizador:** `demo@torneos.app` / `demo1234`
+- **Organizador:** `demo@brackit.app` / `demo1234`
 - **PIN de árbitro de todos los torneos demo:** `246810`
 
 ## Despliegue (todo en planes gratuitos)
