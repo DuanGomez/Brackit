@@ -1,0 +1,8 @@
+{
+  "name": "brackit",
+  "private": true,
+  "description": "Build del frontend para Cloudflare (el código vive en frontend/)",
+  "scripts": {
+    "build": "npm --prefix frontend ci && npm --prefix frontend run build"
+  }
+}
