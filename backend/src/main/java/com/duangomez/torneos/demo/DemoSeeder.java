@@ -137,6 +137,10 @@ public class DemoSeeder implements ApplicationRunner {
 
         for (String name : spec.teams()) {
             Team team = tournamentService.addTeamTo(t, new TeamInput(name, null, null));
+            // Escudos de muestra variados: algunos con dorado o negro como color secundario
+            String[] seconds = {null, "#F5C542", null, "#1D1D1F", "#E8E8ED"};
+            String second = seconds[Math.floorMod(name.hashCode() / 7, seconds.length)];
+            if (second != null && !second.equalsIgnoreCase(team.getColor())) team.setColor2(second);
             List<String[]> roster = DemoData.roster(spec.sport(), name, random);
             for (int i = 0; i < roster.size(); i++) {
                 String[] p = roster.get(i);

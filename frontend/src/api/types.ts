@@ -149,6 +149,11 @@ export interface Team {
   name: string;
   shortName: string;
   color: string;
+  color2: string | null;
+  crestStyle: number;
+  hasPhoto: boolean;
+  /** Versión del escudo (ver teamLogoUrl). */
+  logo?: string;
   group: string | null;
   seed: number;
   players: Player[];
@@ -159,6 +164,7 @@ export interface TeamRef {
   name: string;
   shortName: string;
   color: string;
+  logo?: string;
 }
 
 export interface SetScore {

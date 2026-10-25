@@ -8,6 +8,8 @@ import { PageHeader, useOrg } from './AppLayout';
 const COLORS = ['#1F5BFF', '#18C46A', '#FF7A1A', '#AF52DE', '#E5484D', '#0EA5E9', '#D4A017', '#1D1D1F'];
 
 /** Datos de la organización, su marca y su plan. */
+import { ThemeSwitch } from '../../theme/ThemeControls';
+
 export default function Settings() {
   const { org, reloadOrg, isAdmin, toast } = useOrg();
   const [form, setForm] = useState({ name: org.name, shortName: org.shortName, city: org.city ?? '', description: org.description ?? '', color: org.color });
@@ -17,6 +19,10 @@ export default function Settings() {
   return (
     <div className="page" style={{ maxWidth: 900 }}>
       <PageHeader title="Ajustes" />
+      <section className="card card-pad settings-theme">
+        <div><h2 className="h2">Apariencia</h2><p className="muted" style={{ fontSize: 14 }}>Modo claro, oscuro o automático según tu dispositivo. Solo cambia en este navegador.</p></div>
+        <ThemeSwitch withLabel={false} />
+      </section>
       <form className="card card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 14 }} onSubmit={async (e) => {
         e.preventDefault();
         setError(null);

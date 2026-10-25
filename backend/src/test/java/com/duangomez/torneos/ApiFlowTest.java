@@ -337,6 +337,38 @@ class ApiFlowTest {
     }
 
     @Test
+    void elEscudoSePersonalizaConFotoOEscudoGenerado() throws Exception {
+        Account admin = register();
+        String org = orgWithCourt(admin, "FUTBOL");
+        String created = createTournament(admin.token(), org, "FUTBOL", "LEAGUE", 2, "");
+        Number team = JsonPath.read(created, "$.teams[0].id");
+        String v1 = JsonPath.read(created, "$.teams[0].logo");
+
+        // Sin foto: escudo generado en SVG con la abreviatura
+        String svg = mvc.perform(get("/api/public/teams/" + team + "/logo").param("v", v1))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertThat(svg).startsWith("<svg").contains("</text>");
+
+        // Estilo, colores y foto
+        String png = "data:image/png;base64," + Base64.getEncoder().encodeToString(new byte[]{(byte) 0x89, 'P', 'N', 'G', 1, 2, 3});
+        String updated = json(send(put("/api/orgs/" + org + "/teams/" + team), admin.token(),
+                "{\"name\":\"Halcones\",\"shortName\":\"HAL\",\"color\":\"#112233\",\"color2\":\"#f5c542\",\"crestStyle\":3,\"logo\":\"" + png + "\"}"));
+        assertThat((String) JsonPath.read(updated, "$.logo")).isNotEqualTo(v1);
+        assertThat((Boolean) JsonPath.read(updated, "$.hasPhoto")).isTrue();
+        assertThat((Integer) JsonPath.read(updated, "$.crestStyle")).isEqualTo(3);
+        mvc.perform(get("/api/public/teams/" + team + "/logo").param("v", "x"))
+                .andExpect(status().isOk())
+                .andExpect(result -> assertThat(result.getResponse().getContentType()).isEqualTo("image/png"));
+
+        // Solo imágenes PNG, JPG o WebP (nada de SVG subido ni texto cualquiera)
+        send(put("/api/orgs/" + org + "/teams/" + team), admin.token(),
+                "{\"name\":\"Halcones\",\"logo\":\"data:image/svg+xml;base64,PHN2Zz4=\"}").andExpect(status().isBadRequest());
+        // "" quita la foto y vuelve el escudo generado
+        String cleared = json(send(put("/api/orgs/" + org + "/teams/" + team), admin.token(), "{\"name\":\"Halcones\",\"logo\":\"\"}"));
+        assertThat((Boolean) JsonPath.read(cleared, "$.hasPhoto")).isFalse();
+    }
+
+    @Test
     void validacionesYLimiteDeIntentos() throws Exception {
         send(post("/api/auth/register"), null, "{\"name\":\"\",\"email\":\"malo\",\"password\":\"123\"}").andExpect(status().isBadRequest());
         Account admin = register();

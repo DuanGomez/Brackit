@@ -139,7 +139,7 @@ export function Standings({ group, teams, sport, highlight, live }: {
           <tr>
             <th className="left">#</th>
             <th className="left">{SPORTS[sport].participant}</th>
-            <th>PJ</th><th>G</th>{goals && <th>E</th>}<th>P</th>
+            <th>PJ</th><th className="hide-xs">G</th>{goals && <th className="hide-xs">E</th>}<th className="hide-xs">P</th>
             <th className="hide-sm">{goals ? 'GF' : sets ? 'SG' : 'PF'}</th>
             <th className="hide-sm">{goals ? 'GC' : sets ? 'SP' : 'PC'}</th>
             <th>{goals ? 'DG' : 'Dif'}</th><th>Pts</th><th className="hide-sm">Racha</th>
@@ -159,7 +159,7 @@ export function Standings({ group, teams, sport, highlight, live }: {
                     {r.live && <span className="st-live">En vivo</span>}
                   </span>
                 </td>
-                <td>{r.played}</td><td>{r.won}</td>{goals && <td>{r.drawn}</td>}<td>{r.lost}</td>
+                <td>{r.played}</td><td className="hide-xs">{r.won}</td>{goals && <td className="hide-xs">{r.drawn}</td>}<td className="hide-xs">{r.lost}</td>
                 <td className="hide-sm">{r.scoreFor}</td><td className="hide-sm">{r.scoreAgainst}</td>
                 <td>{r.diff > 0 ? `+${r.diff}` : r.diff}</td>
                 <td className="st-pts">{r.points}</td>

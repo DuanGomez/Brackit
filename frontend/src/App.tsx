@@ -3,6 +3,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router';
 import { AuthProvider } from './auth/AuthContext';
 import { LoginPage, RegisterPage } from './pages/site/Auth';
 import Landing from './pages/site/Landing';
+import { NotFoundPage, RouteError } from './pages/site/ErrorPages';
 import { PublicMatchPage, PublicOrgPage, PublicTournamentPage } from './pages/public/PublicPages';
 
 // El panel solo lo usa quien inicia sesión: se carga aparte para que el sitio y las páginas públicas abran rápido
@@ -28,20 +29,11 @@ function Lazy({ children }: { children: ReactNode }) {
   return <Suspense fallback={<div style={{ minHeight: '100dvh', background: 'var(--bg)' }} />}>{children}</Suspense>;
 }
 
-function NotFound() {
-  return (
-    <div style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', padding: 20 }}>
-      <div className="card card-pad" style={{ textAlign: 'center', maxWidth: 380 }}>
-        <h1 className="h2">Esta página no existe</h1>
-        <p className="muted" style={{ margin: '8px 0 16px' }}>Revisa el enlace o vuelve al inicio.</p>
-        <a className="btn" href={import.meta.env.BASE_URL}>Ir al inicio</a>
-      </div>
-    </div>
-  );
-}
-
 const router = createBrowserRouter(
-  [
+  [{
+    // Cualquier fallo dentro de una ruta muestra la página de error en vez de una pantalla en blanco
+    errorElement: <RouteError />,
+    children: [
     { path: '/', element: <Landing /> },
     { path: '/ingresar', element: <LoginPage /> },
     { path: '/registro', element: <RegisterPage /> },
@@ -70,8 +62,9 @@ const router = createBrowserRouter(
         { path: 'ajustes', element: <Lazy><Settings /></Lazy> },
       ],
     },
-    { path: '*', element: <NotFound /> },
-  ],
+    { path: '*', element: <NotFoundPage /> },
+    ],
+  }],
   { basename: import.meta.env.BASE_URL.replace(/\/$/, '') || '/' },
 );
 

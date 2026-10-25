@@ -114,6 +114,10 @@ export interface TeamInput {
   name: string;
   shortName?: string;
   color?: string;
+  color2?: string;
+  crestStyle?: number;
+  /** undefined: no cambia · '': quita la foto · data URL: foto nueva */
+  logo?: string;
 }
 
 export interface CreateTournamentInput {

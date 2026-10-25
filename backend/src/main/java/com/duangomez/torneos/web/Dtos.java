@@ -112,7 +112,14 @@ public final class Dtos {
     public record TeamInput(
             @NotBlank(message = "Cada equipo necesita un nombre") @Size(max = 60, message = "Nombre de equipo muy largo") String name,
             @Size(max = 4, message = "La abreviatura admite hasta 4 letras") String shortName,
-            @Pattern(regexp = "^#[0-9A-Fa-f]{6}$", message = "Color inválido") String color) {
+            @Pattern(regexp = "^#[0-9A-Fa-f]{6}$", message = "Color inválido") String color,
+            @Pattern(regexp = "^#[0-9A-Fa-f]{6}$", message = "Color secundario inválido") String color2,
+            @Min(value = 0, message = "Estilo de escudo inválido") @Max(value = 5, message = "Estilo de escudo inválido") Integer crestStyle,
+            // null: no cambia · "": quita la foto · data:image/...;base64,...: foto nueva
+            @Size(max = 400000, message = "La imagen del escudo es muy pesada") String logo) {
+        public TeamInput(String name, String shortName, String color) {
+            this(name, shortName, color, null, null, null);
+        }
     }
 
     public record CreateTournamentRequest(
@@ -202,11 +209,12 @@ public final class Dtos {
     public record PlayerDto(Long id, String name, Integer number, String document) {
     }
 
-    public record TeamDto(Long id, String name, String shortName, String color, String group, int seed,
-                          List<PlayerDto> players) {
+    public record TeamDto(Long id, String name, String shortName, String color, String color2, int crestStyle, boolean hasPhoto,
+                          String logo, String group, int seed, List<PlayerDto> players) {
     }
 
-    public record TeamRef(Long id, String name, String shortName, String color) {
+    /** logo: versión del escudo; la imagen se pide a /api/public/teams/{id}/logo?v={logo}. */
+    public record TeamRef(Long id, String name, String shortName, String color, String logo) {
     }
 
     public record SetDto(int home, int away, boolean finished) {

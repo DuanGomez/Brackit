@@ -50,3 +50,11 @@
 .conflicts { border-radius: 12px; background: var(--danger-bg); color: var(--danger); padding: 12px 14px; font-size: 13.5px; display: flex; flex-direction: column; gap: 6px; }
 .conflicts b { display: flex; align-items: center; gap: 7px; font-size: 14px; }
 .conflicts ul { list-style: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 3px; }
+@media (max-width: 600px) {
+  .cal-card { padding: 14px 12px 16px; }
+  .cal-hours, .cal-row { grid-template-columns: 92px 1fr; }
+  /* El nombre de la cancha queda fijo a la izquierda mientras la franja horaria se desliza */
+  .cal-court { position: sticky; left: 0; z-index: 4; background: var(--surface); padding-right: 8px; }
+  .cal-court b { font-size: 13px; }
+  .cal-court small { font-size: 11px; }
+}

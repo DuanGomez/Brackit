@@ -49,12 +49,13 @@ public class TournamentViews {
     }
 
     public static TeamDto team(Team t) {
-        return new TeamDto(t.getId(), t.getName(), t.getShortName(), t.getColor(), t.getGroupLabel(), t.getSeed(),
+        return new TeamDto(t.getId(), t.getName(), t.getShortName(), t.getColor(), t.getColor2(), t.getCrestStyle(), t.getLogo() != null,
+                t.logoVersion(), t.getGroupLabel(), t.getSeed(),
                 t.getPlayers().stream().map(p -> new PlayerDto(p.getId(), p.getName(), p.getShirtNumber(), p.getDocument())).toList());
     }
 
     private static com.duangomez.torneos.web.Dtos.TeamRef ref(Team t) {
-        return t == null ? null : new com.duangomez.torneos.web.Dtos.TeamRef(t.getId(), t.getName(), t.getShortName(), t.getColor());
+        return t == null ? null : new com.duangomez.torneos.web.Dtos.TeamRef(t.getId(), t.getName(), t.getShortName(), t.getColor(), t.logoVersion());
     }
 
     public static WindowDto window(CourtAvailability a) {

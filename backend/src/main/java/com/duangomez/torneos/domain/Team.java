@@ -31,6 +31,22 @@ public class Team {
 
     private String color;
 
+    /** Color secundario del escudo generado. */
+    private String color2;
+
+    /** Foto del escudo subida por la organización (data URL de PNG, JPEG o WebP). */
+    @Column(length = 400000)
+    private String logo;
+
+    /** Estilo del escudo generado cuando no hay foto. */
+    @Column(name = "crest_style")
+    private int crestStyle;
+
+    /** Cambia cuando cambia el escudo, para que el navegador no muestre uno viejo de su caché. */
+    public String logoVersion() {
+        return Integer.toHexString(java.util.Objects.hash(logo, crestStyle, color, color2, shortName));
+    }
+
     @Column(name = "group_label")
     private String groupLabel;
 

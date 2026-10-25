@@ -1,0 +1,25 @@
+/* Páginas de estado (404, sin conexión, error): negro del sitio con brillo de marca. */
+.status-page { position: relative; min-height: 100dvh; display: flex; flex-direction: column; background: #0b0b0f; color: #f5f5f7; overflow: hidden; }
+.status-glow { position: absolute; left: 50%; top: -260px; width: 1000px; height: 700px; margin-left: -500px; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(31, 91, 255, 0.26), rgba(24, 196, 106, 0.12) 55%, transparent 100%); }
+.status-top { position: relative; padding: 18px 24px; }
+.status-brand { display: inline-flex; align-items: center; gap: 10px; color: #f5f5f7 !important; font-weight: 700; font-size: 18px; letter-spacing: -0.02em; }
+.status-main { position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+  gap: 14px; padding: 24px 20px 48px; max-width: 680px; margin: 0 auto; width: 100%; }
+.status-code { font-size: clamp(96px, 22vw, 180px); font-weight: 800; line-height: 0.9; letter-spacing: -0.06em; font-variant-numeric: tabular-nums;
+  background: linear-gradient(100deg, #4d8dff 0%, #1f5bff 45%, #18c46a 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.status-code svg { color: #4d8dff; }
+.status-kicker { font-size: 15px; font-weight: 600; color: #4d8dff; margin-top: 6px; }
+.status-main h1 { font-size: clamp(28px, 5vw, 44px); line-height: 1.1; font-weight: 700; letter-spacing: -0.035em; }
+.status-text { font-size: clamp(16px, 2.2vw, 19px); font-weight: 300; line-height: 1.5; color: rgba(245, 245, 247, 0.7); max-width: 520px; }
+.status-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 12px; }
+.status-actions .btn { color: #fff; }
+.status-actions .status-ghost { background: rgba(255, 255, 255, 0.08); color: #f5f5f7; border: 1px solid rgba(255, 255, 255, 0.14); }
+.status-actions .status-ghost:hover { background: rgba(255, 255, 255, 0.14); color: #fff; }
+.status-details { margin-top: 18px; font-size: 13px; color: rgba(245, 245, 247, 0.5); max-width: 100%; }
+.status-details summary { cursor: pointer; }
+.status-details code { display: block; margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: rgba(255, 255, 255, 0.06); text-align: left;
+  white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
+.status-foot { position: relative; text-align: center; padding: 20px; font-size: 13.5px; color: rgba(245, 245, 247, 0.55); }
+.status-foot a { color: #4d8dff; }
+@media (max-width: 480px) { .status-actions { flex-direction: column; width: 100%; } .status-actions .btn { width: 100%; } }

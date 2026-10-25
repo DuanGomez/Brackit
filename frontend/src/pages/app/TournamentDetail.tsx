@@ -5,6 +5,7 @@ import type { Match, Team, Tournament, Venue } from '../../api/types';
 import { Icon } from '../../components/Icon';
 import { Bracket, MatchLine, Standings } from '../../components/match';
 import { TeamBadge } from '../../components/TeamBadge';
+import { TeamEditor } from '../../components/TeamEditor';
 import { useNow } from '../../lib/clock';
 import { addDays, FORMAT_LABEL, formatDate, plural, todayKey } from '../../lib/format';
 import { toCard } from '../../lib/cards';
@@ -281,6 +282,7 @@ function TeamsEditor({ t, reload, canManage }: { t: Tournament; reload: () => Pr
   const [open, setOpen] = useState<number | null>(null);
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Team | null>(null);
   const draft = t.status === 'DRAFT';
   const individual = t.sport.participantLabel !== 'Equipo';
   const act = async (fn: () => Promise<unknown>) => {
@@ -303,18 +305,16 @@ function TeamsEditor({ t, reload, canManage }: { t: Tournament; reload: () => Pr
         const missing = team.players.filter((p) => !p.document).length;
         return (
           <div key={team.id} style={{ borderTop: '1px solid var(--line)' }}>
-            <div className="list-row" style={{ borderTop: 0, flexWrap: 'wrap' }}>
-              <TeamBadge team={team} size={34} />
+            <div className="list-row team-row" style={{ borderTop: 0 }}>
               {canManage ? (
-                <input className="input" style={{ flex: '1 1 200px', height: 38 }} defaultValue={team.name} aria-label="Nombre"
-                  onBlur={(e) => e.target.value.trim() && e.target.value !== team.name && act(() => api.updateTeam(org.slug, team.id, { name: e.target.value, shortName: team.shortName, color: team.color }))} />
-              ) : <b style={{ flex: 1 }}>{team.name}</b>}
-              {canManage && <>
-                <input className="input" style={{ width: 70, height: 38 }} defaultValue={team.shortName} maxLength={4} aria-label="Abreviatura"
-                  onBlur={(e) => e.target.value !== team.shortName && act(() => api.updateTeam(org.slug, team.id, { name: team.name, shortName: e.target.value, color: team.color }))} />
-                <input type="color" defaultValue={team.color} aria-label="Color" style={{ width: 34, height: 34, border: 0, background: 'none', cursor: 'pointer' }}
-                  onBlur={(e) => e.target.value.toUpperCase() !== team.color && act(() => api.updateTeam(org.slug, team.id, { name: team.name, shortName: team.shortName, color: e.target.value }))} />
-              </>}
+                <button type="button" className="team-row-main" onClick={() => setEditing(team)} title="Personalizar equipo">
+                  <TeamBadge team={team} size={40} />
+                  <span><b>{team.name}</b><small className="muted">{team.shortName} · {team.hasPhoto ? 'Foto del escudo' : 'Escudo con sus colores'}</small></span>
+                </button>
+              ) : (
+                <span className="team-row-main"><TeamBadge team={team} size={40} /><span><b>{team.name}</b><small className="muted">{team.shortName}</small></span></span>
+              )}
+              {canManage && <button type="button" className="btn btn-sm btn-secondary" onClick={() => setEditing(team)}><Icon name="edit" size={14} />Personalizar</button>}
               {team.group && <span className="chip">Grupo {team.group}</span>}
               {missing > 0 && <span className="chip chip-cancel">{plural(missing, 'sin documento', 'sin documento')}</span>}
               {!individual && <button type="button" className="btn btn-sm btn-secondary" onClick={() => setOpen(open === team.id ? null : team.id)}>{plural(team.players.length, 'jugador', 'jugadores')}</button>}
@@ -324,10 +324,12 @@ function TeamsEditor({ t, reload, canManage }: { t: Tournament; reload: () => Pr
           </div>
         );
       })}
+      {editing && <TeamEditor org={org.slug} team={editing} onClose={() => setEditing(null)} onSaved={() => { reload(); }} />}
       {draft && canManage && (
         <form style={{ display: 'flex', gap: 8, padding: '14px 22px 20px', borderTop: '1px solid var(--line)', flexWrap: 'wrap' }} onSubmit={(e: FormEvent) => {
           e.preventDefault();
-          if (name.trim()) act(() => api.addTeam(org.slug, t.id, { name })).then(() => setName(''));
+          // Al agregar un equipo se abre su editor para ponerle escudo y colores
+          if (name.trim()) act(async () => setEditing(await api.addTeam(org.slug, t.id, { name }))).then(() => setName(''));
         }}>
           <input className="input" style={{ flex: '1 1 220px' }} placeholder={`Nuevo ${t.sport.participantLabel.toLowerCase()}`} value={name} onChange={(e) => setName(e.target.value)} maxLength={60} />
           <button className="btn"><Icon name="plus" size={15} />Agregar</button>

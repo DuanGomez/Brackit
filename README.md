@@ -15,6 +15,7 @@ Plataforma **SaaS de gestión de torneos** para ligas, clubes y empresas. Cada o
   - **Liga:** $150.000/mes, torneos ilimitados y hasta 5 sedes.
   - **Club:** $350.000/mes, todo ilimitado.
   - Los límites se aplican en el servidor. Los planes pagos se contratan por WhatsApp.
+- **Escudos de los equipos:** cada equipo sube la foto de su escudo o arma uno con sus colores (6 estilos). Las imágenes se sirven con caché larga y se invalidan solas al cambiar.
 - **Sedes y canchas:** cada cancha tiene sus deportes, su horario semanal y bloqueos puntuales (mantenimiento, clima).
 - **Programación automática sin choques:** al generar el calendario, Brackit reparte los partidos en las canchas del torneo. Respeta:
   - el horario de cada cancha;
@@ -50,7 +51,7 @@ backend/   Java 21 + Spring Boot 4 + Spring Security (JWT) + JPA + Flyway  →  
 ### Pruebas
 
 ```bash
-cd backend && ./mvnw test     # 53 pruebas: motor, programador, aislamiento entre organizaciones, roles, planes y flujos completos
+cd backend && ./mvnw test     # 54 pruebas: motor, programador, aislamiento entre organizaciones, roles, planes y flujos completos
 cd frontend && npm test       # reloj de juego
 ```
 

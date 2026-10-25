@@ -140,6 +140,7 @@ public class TournamentService {
         team.setName(input.name().trim());
         team.setShortName(shortName(input.shortName(), input.name()));
         if (input.color() != null) team.setColor(input.color().toUpperCase(Locale.ROOT));
+        applyCrest(team, input);
         broadcaster.tournamentChanged(team.getTournament());
         return TournamentViews.team(team);
     }
@@ -287,8 +288,27 @@ public class TournamentService {
         team.setShortName(shortName(input.shortName(), name));
         team.setColor(input.color() != null ? input.color().toUpperCase(Locale.ROOT) : PALETTE[t.getTeams().size() % PALETTE.length]);
         team.setSeed(t.getTeams().size() + 1);
+        team.setColor2(CrestRenderer.secondaryFor(team.getColor()));
+        team.setCrestStyle(Math.floorMod(name.hashCode(), CrestRenderer.STYLES));
+        applyCrest(team, input);
         t.getTeams().add(team);
         return team;
+    }
+
+    private static final java.util.regex.Pattern PHOTO = java.util.regex.Pattern.compile("^data:image/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$");
+
+    /** Color secundario, estilo del escudo y foto subida. */
+    private static void applyCrest(Team team, TeamInput input) {
+        if (input.color2() != null) team.setColor2(input.color2().toUpperCase(Locale.ROOT));
+        if (input.crestStyle() != null) team.setCrestStyle(input.crestStyle());
+        if (input.logo() == null) return;
+        if (input.logo().isEmpty()) {
+            team.setLogo(null);
+        } else if (PHOTO.matcher(input.logo()).matches()) {
+            team.setLogo(input.logo());
+        } else {
+            throw ApiException.badRequest("El escudo debe ser una imagen PNG, JPG o WebP");
+        }
     }
 
     private static void validateFormat(TournamentFormat format, int groups, int advance) {

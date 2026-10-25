@@ -7,6 +7,8 @@ import { useTopic } from './live';
 export interface Loaded<T> {
   data: T | null;
   error: string | null;
+  /** Código HTTP del error (0 = sin conexión), para mostrar la página adecuada. */
+  errorStatus: number | null;
   loading: boolean;
   reload: () => Promise<void>;
   setData: (data: T) => void;
@@ -14,7 +16,7 @@ export interface Loaded<T> {
 
 /** Carga datos con un loader; {@code key} cambia = vuelve a cargar desde cero. */
 export function useLoad<T>(loader: () => Promise<T>, key: string): Loaded<T> {
-  const [state, setState] = useState<{ data: T | null; error: string | null; loading: boolean }>({ data: null, error: null, loading: true });
+  const [state, setState] = useState<{ data: T | null; error: string | null; errorStatus: number | null; loading: boolean }>({ data: null, error: null, errorStatus: null, loading: true });
   const loaderRef = useRef(loader);
   loaderRef.current = loader;
 
@@ -23,18 +25,18 @@ export function useLoad<T>(loader: () => Promise<T>, key: string): Loaded<T> {
       const data = await loaderRef.current();
       const time = (data as { serverTime?: string } | null)?.serverTime;
       syncServerTime(time);
-      setState({ data, error: null, loading: false });
+      setState({ data, error: null, errorStatus: null, loading: false });
     } catch (e) {
-      setState((s) => ({ ...s, loading: false, error: e instanceof ApiError ? e.message : 'No se pudo cargar la información' }));
+      setState((s) => ({ ...s, loading: false, error: e instanceof ApiError ? e.message : 'No se pudo cargar la información', errorStatus: e instanceof ApiError ? e.status : 500 }));
     }
   }, []);
 
   useEffect(() => {
-    setState({ data: null, error: null, loading: true });
+    setState({ data: null, error: null, errorStatus: null, loading: true });
     reload();
   }, [key, reload]);
 
-  return { ...state, reload, setData: (data: T) => setState({ data, error: null, loading: false }) };
+  return { ...state, reload, setData: (data: T) => setState({ data, error: null, errorStatus: null, loading: false }) };
 }
 
 /**

@@ -82,3 +82,9 @@ a.bk-match:hover { border-color: var(--link); color: var(--text); }
 .bk-team.won { font-weight: 700; }
 .bk-team.lost { color: var(--muted); }
 .bk-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 7px 12px; background: var(--surface-2); font-size: 12px; }
+.team-logo { flex: none; display: inline-block; object-fit: contain; }
+@media (max-width: 480px) {
+  .hide-xs { display: none; }
+  .st-team { min-width: 0; }
+  .standings td, .standings th { padding-left: 4px; padding-right: 4px; }
+}

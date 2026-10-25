@@ -1,10 +1,11 @@
-import { useEffect, useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { Link, NavLink, useParams, useSearchParams } from 'react-router';
 import { api } from '../../api/client';
 import type { MatchCard, OrgRef, Team, Tournament } from '../../api/types';
 import { Icon, Logo, OrgBadge } from '../../components/Icon';
 import { Bracket, Scoreboard, Standings, Timeline } from '../../components/match';
 import { TeamBadge } from '../../components/TeamBadge';
+import { LoadError } from '../site/ErrorPages';
 import { BRAND } from '../../config';
 import { liveClockLabel, useNow } from '../../lib/clock';
 import { FORMAT_LABEL, formatDate, formatDateTime, formatTime, plural } from '../../lib/format';
@@ -15,12 +16,19 @@ import '../app/app.css';
 import './public.css';
 
 function PubHeader({ org, tournaments, children }: { org: OrgRef; tournaments?: { slug: string; name: string }[]; children?: ReactNode }) {
+  const tabs = useRef<HTMLDivElement>(null);
+  const { slug } = useParams();
+  // En el celular, el torneo abierto queda a la vista dentro de la fila deslizable
+  useEffect(() => {
+    const el = tabs.current?.querySelector<HTMLElement>('a.active');
+    if (el && tabs.current) tabs.current.scrollLeft = el.offsetLeft - tabs.current.clientWidth / 2 + el.clientWidth / 2;
+  }, [slug, tournaments?.length]);
   return (
     <header className="pub-head">
       <nav className="pub-nav" aria-label="Organización">
         <Link to={`/l/${org.slug}`} className="pub-org"><OrgBadge shortName={org.shortName} color={org.color} size={34} />{org.name}</Link>
         {tournaments && tournaments.length > 0 && (
-          <div className="pub-tabs">
+          <div className="pub-tabs" ref={tabs}>
             {tournaments.map((t) => <NavLink key={t.slug} to={`/l/${org.slug}/${t.slug}`} className={({ isActive }) => (isActive ? 'active' : '')}>{t.name}</NavLink>)}
           </div>
         )}
@@ -61,7 +69,7 @@ function PubGame({ m, now, to }: { m: MatchCard; now: number; to: string }) {
 
 export function PublicOrgPage() {
   const { org: slug } = useParams();
-  const { data, error, loading, reload } = useLoad(() => api.publicOrg(slug!), `pub-${slug}`);
+  const { data, error, errorStatus, loading, reload } = useLoad(() => api.publicOrg(slug!), `pub-${slug}`);
   useOrgChanges(slug, reload);
   const now = useNow(!!data?.today.some((m) => m.status === 'LIVE'));
   useEffect(() => {
@@ -69,7 +77,7 @@ export function PublicOrgPage() {
   }, [data]);
 
   if (loading) return <div className="pub"><div className="pub-head" style={{ height: 320 }} /></div>;
-  if (error || !data) return <div className="pub app-center"><div className="pub-card" style={{ padding: 32, textAlign: 'center' }}><h1 style={{ fontSize: 22 }}>No encontramos esta organización</h1><p style={{ color: '#6E6E73', margin: '8px 0 16px' }}>{error}</p><Link to="/" className="btn">Ir a {BRAND.name}</Link></div></div>;
+  if (error || !data) return <LoadError status={errorStatus} message={error} onRetry={reload} notFound={{ title: 'No encontramos esta liga', text: 'Puede que el enlace esté mal escrito o que la organización ya no publique sus torneos.' }} />;
 
   const org = data.organization;
   const f = data.featured;
@@ -129,7 +137,7 @@ type PubTab = 'resumen' | 'partidos' | 'tabla' | 'llaves' | 'goleadores';
 
 export function PublicTournamentPage() {
   const { org: orgSlug, slug } = useParams();
-  const { data: t, teams, error, loading } = useTournamentLive(() => api.publicTournament(orgSlug!, slug!), `pubt-${orgSlug}-${slug}`);
+  const { data: t, teams, error, errorStatus, loading, reload } = useTournamentLive(() => api.publicTournament(orgSlug!, slug!), `pubt-${orgSlug}-${slug}`);
   const orgData = useLoad(() => api.publicOrg(orgSlug!), `pub-${orgSlug}`);
   const [params, setParams] = useSearchParams();
   const now = useNow(!!t?.matches.some((m) => m.status === 'LIVE'));
@@ -138,7 +146,7 @@ export function PublicTournamentPage() {
   }, [t]);
 
   if (loading) return <div className="pub"><div className="pub-head" style={{ height: 200 }} /></div>;
-  if (error || !t) return <div className="pub app-center"><div className="pub-card" style={{ padding: 32, textAlign: 'center' }}><h1 style={{ fontSize: 22 }}>No encontramos este torneo</h1><p style={{ color: '#6E6E73', margin: '8px 0 16px' }}>{error}</p><Link to={`/l/${orgSlug}`} className="btn">Volver</Link></div></div>;
+  if (error || !t) return <LoadError status={errorStatus} message={error} onRetry={reload} notFound={{ title: 'No encontramos este torneo', text: 'Puede que aún no esté publicado o que el enlace haya cambiado.', back: { to: `/l/${orgSlug}`, label: 'Ver los torneos de la liga' } }} />;
 
   const tabs: { id: PubTab; label: string }[] = [
     { id: 'resumen', label: 'Resumen' }, { id: 'partidos', label: 'Partidos' },
@@ -262,10 +270,10 @@ function PubScorers({ t, teams }: { t: Tournament; teams: Map<number, Team> }) {
 export function PublicMatchPage() {
   const { org: orgSlug, id } = useParams();
   const matchId = Number(id);
-  const { data, error, loading } = useMatchLive(() => api.publicMatch(matchId), matchId);
+  const { data, error, errorStatus, loading, reload } = useMatchLive(() => api.publicMatch(matchId), matchId);
   const now = useNow(data?.match.status === 'LIVE');
   if (loading) return <div className="pub"><div className="pub-head" style={{ height: 200 }} /></div>;
-  if (error || !data) return <div className="pub app-center"><div className="pub-card" style={{ padding: 32 }}><h1 style={{ fontSize: 22 }}>No encontramos el partido</h1></div></div>;
+  if (error || !data) return <LoadError status={errorStatus} message={error} onRetry={reload} notFound={{ title: 'No encontramos este partido', back: { to: `/l/${orgSlug ?? ''}`, label: 'Ver la liga' } }} />;
   const org = data.tournament.organization;
   return (
     <div className="pub">

@@ -38,3 +38,22 @@ a.pub-game:hover { transform: translateY(-2px); color: #1d1d1f; }
 .pub-foot div { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 13px; color: #6e6e73; }
 .pub-foot a { color: #1d1d1f; font-weight: 600; }
 .pub .card { background: #fff; border-color: transparent; }
+
+/* Selector de torneos: una fila que se desliza en vez de apilarse */
+.pub-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; max-width: 100%; min-width: 0; }
+.pub-tabs::-webkit-scrollbar { display: none; }
+.pub-tabs a { white-space: nowrap; flex: none; }
+@media (max-width: 760px) {
+  .pub-nav { padding: 10px 16px 0; gap: 4px; }
+  .pub-nav .pub-org { font-size: 16px; min-width: 0; }
+  .pub-tabs { margin: 0 -16px; padding: 10px 16px 12px; width: calc(100% + 32px); max-width: none;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 16px, #000 calc(100% - 28px), transparent 100%);
+            mask-image: linear-gradient(90deg, transparent 0, #000 16px, #000 calc(100% - 28px), transparent 100%); }
+  .pub-tabs a { background: rgba(255, 255, 255, 0.08); }
+  .pub-tabs a.active { background: #f5f5f7; }
+  .pub-hero-text { padding: 26px 16px 34px; }
+  .pub-hero-text p { font-size: 16px; }
+  .pub-main { padding: 28px 16px 48px; gap: 22px; }
+  .pub-main h2 { font-size: 23px; }
+  .pub-feature { padding: 32px 16px 44px; }
+}

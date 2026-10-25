@@ -1,12 +1,14 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate, useParams } from 'react-router';
+import { NavLink, Navigate, Outlet, useLocation, useNavigate, useParams } from 'react-router';
 import { api, ApiError, onServerWaking } from '../../api/client';
 import type { Org } from '../../api/types';
 import { useAuth } from '../../auth/AuthContext';
-import { Icon, Logo, OrgBadge, type IconName } from '../../components/Icon';
-import { BRAND, planLabel } from '../../config';
+import { Icon, OrgBadge, type IconName } from '../../components/Icon';
+import { planLabel } from '../../config';
 import { ROLE_LABEL } from '../../lib/format';
-import { setTheme, useApplyTheme, useThemeChoice, type ThemeChoice } from '../../theme/theme';
+import { useApplyTheme } from '../../theme/theme';
+import { ThemeSwitch, ThemeToggle } from '../../theme/ThemeControls';
+import { LoadError } from '../site/ErrorPages';
 import './app.css';
 
 // ---------- Organización actual ----------
@@ -62,20 +64,6 @@ function navFor(manage: boolean): { main: NavItem[]; extra: NavItem[] } {
   };
 }
 
-function ThemeSwitch() {
-  const choice = useThemeChoice();
-  const options: { id: ThemeChoice; label: string }[] = [
-    { id: 'light', label: 'Claro' }, { id: 'dark', label: 'Oscuro' }, { id: 'auto', label: 'Auto' },
-  ];
-  return (
-    <div className="theme-switch" role="group" aria-label="Apariencia">
-      {options.map((o) => (
-        <button key={o.id} type="button" aria-pressed={choice === o.id} className={choice === o.id ? 'active' : ''} onClick={() => setTheme(o.id)}>{o.label}</button>
-      ))}
-    </div>
-  );
-}
-
 function OrgSwitcher({ org }: { org: Org }) {
   const { session } = useAuth();
   const [open, setOpen] = useState(false);
@@ -126,7 +114,7 @@ export default function AppLayout() {
   const { session, membership, logout } = useAuth();
   const location = useLocation();
   const [org, setOrg] = useState<Org | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ status: number; message: string } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
@@ -136,7 +124,7 @@ export default function AppLayout() {
       setOrg(await api.org(slug));
       setError(null);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'No se pudo abrir la organización');
+      setError(e instanceof ApiError ? { status: e.status, message: e.message } : { status: 500, message: 'No se pudo abrir la organización' });
     }
   };
 
@@ -154,15 +142,8 @@ export default function AppLayout() {
 
   if (!session) return <Navigate to="/ingresar" replace state={{ from: location.pathname }} />;
   if (error) {
-    return (
-      <div className="app-center">
-        <div className="card card-pad" style={{ maxWidth: 420, textAlign: 'center' }}>
-          <h1 className="h2">No tienes acceso a esta organización</h1>
-          <p className="muted" style={{ margin: '8px 0 16px' }}>{error}</p>
-          <Link to="/app" className="btn">Ir a mis organizaciones</Link>
-        </div>
-      </div>
-    );
+    return <LoadError status={error.status} message={error.message} onRetry={reloadOrg}
+      notFound={{ title: 'No tienes acceso a esta organización', text: 'No existe o tu cuenta no es miembro. Pide a un administrador que te invite con este correo.', back: { to: '/app', label: 'Ir a mis organizaciones' } }} />;
   }
 
   const role = org?.myRole ?? membership(slug)?.role;
@@ -190,7 +171,7 @@ export default function AppLayout() {
       <header className="app-top">
         <button type="button" className="btn btn-secondary icon-btn" aria-label="Abrir menú" onClick={() => setMenuOpen(!menuOpen)}><Icon name="menu" size={18} /></button>
         {org && <span className="app-top-org"><OrgBadge shortName={org.shortName} color={org.color} size={28} />{org.name}</span>}
-        <Link to="/" aria-label={BRAND.name} style={{ marginLeft: 'auto' }}><Logo size={26} /></Link>
+        <span style={{ marginLeft: 'auto' }}><ThemeToggle /></span>
       </header>
 
       <aside className={`side ${menuOpen ? 'open' : ''}`}>

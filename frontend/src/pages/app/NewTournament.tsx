@@ -205,7 +205,7 @@ export default function NewTournament() {
             {teams.length} inscritos · mínimo {minTeams}{!unique && ' · hay nombres repetidos'}
             {format === 'KNOCKOUT' && teams.length > 2 && (teams.length & (teams.length - 1)) !== 0 && ` · ${2 ** Math.ceil(Math.log2(teams.length)) - teams.length} pasan directo a la segunda ronda`}
           </p>
-          <p className="faint" style={{ fontSize: 13 }}>Después podrás agregar jugadores con su número y documento, colores y abreviaturas.</p>
+          <p className="faint" style={{ fontSize: 13 }}>Cada equipo arranca con un escudo con sus colores. Después, en la pestaña Equipos, puedes subir la foto del escudo de cada club, cambiar colores y abreviatura, y agregar jugadores con número y documento.</p>
         </div>
       )}
 

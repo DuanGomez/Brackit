@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { api } from '../../api/client';
 import type { PublicOrgCard } from '../../api/types';
 import { useAuth } from '../../auth/AuthContext';
@@ -10,16 +10,52 @@ import './site.css';
 
 const check = <Icon name="check" size={18} strokeWidth={2.4} />;
 
+const SECTIONS = [
+  { id: 'producto', label: 'Producto' },
+  { id: 'ligas', label: 'Ligas en vivo' },
+  { id: 'precios', label: 'Precios' },
+];
+
+/** Lleva a una sección del inicio desde cualquier página (respeta la ruta base del sitio). */
+function useGoToSection() {
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  return (id: string) => {
+    if (pathname === '/') scrollToSection(id);
+    else navigate('/', { state: { section: id } });
+  };
+}
+
+function scrollToSection(id: string) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const top = el.getBoundingClientRect().top + window.scrollY - 56;
+  window.scrollTo({ top, behavior: 'smooth' });
+  history.replaceState(history.state, '', `#${id}`);
+}
+
 export function SiteNav() {
   const { session } = useAuth();
+  const go = useGoToSection();
+  const [open, setOpen] = useState(false);
+  const pick = (id: string) => (e: { preventDefault(): void }) => {
+    e.preventDefault();
+    setOpen(false);
+    go(id);
+  };
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open]);
+
   return (
-    <header className="site-nav">
+    <header className={`site-nav ${open ? 'open' : ''}`}>
       <nav className="site-nav-inner" aria-label="Principal">
-        <Link to="/" className="site-brand"><Logo size={28} />{BRAND.name}</Link>
+        <Link to="/" className="site-brand" onClick={() => { setOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }}><Logo size={28} />{BRAND.name}</Link>
         <div className="site-links">
-          <a href="/#producto">Producto</a>
-          <a href="/#ligas">Ligas en vivo</a>
-          <a href="/#precios">Precios</a>
+          {SECTIONS.map((s) => <a key={s.id} href={`#${s.id}`} onClick={pick(s.id)}>{s.label}</a>)}
         </div>
         <div className="site-actions">
           {session ? (
@@ -30,8 +66,17 @@ export function SiteNav() {
               <Link to="/registro" className="pill-light">Crear organización</Link>
             </>
           )}
+          <button type="button" className="site-burger" aria-label={open ? 'Cerrar menú' : 'Abrir menú'} aria-expanded={open} onClick={() => setOpen(!open)}>
+            <span /><span />
+          </button>
         </div>
       </nav>
+      {open && (
+        <div className="site-menu">
+          {SECTIONS.map((s) => <a key={s.id} href={`#${s.id}`} onClick={pick(s.id)}>{s.label}</a>)}
+          {!session && <Link to="/ingresar" onClick={() => setOpen(false)}>Ingresar</Link>}
+        </div>
+      )}
     </header>
   );
 }
@@ -49,10 +94,18 @@ export function SiteFooter() {
 
 export default function Landing() {
   const [orgs, setOrgs] = useState<PublicOrgCard[] | null>(null);
+  const location = useLocation();
   useEffect(() => {
     document.title = `${BRAND.name} · ${BRAND.tagline}`;
     api.publicOrgs().then(setOrgs).catch(() => setOrgs([]));
   }, []);
+  // Llegó desde otra página pidiendo una sección (o con #precios en el enlace)
+  const wanted = (location.state as { section?: string } | null)?.section ?? location.hash.replace('#', '');
+  useEffect(() => {
+    if (!wanted) return;
+    const timer = setTimeout(() => scrollToSection(wanted), 60);
+    return () => clearTimeout(timer);
+  }, [wanted, orgs]);
   const liveOrg = orgs?.find((o) => o.liveCount > 0) ?? orgs?.[0];
 
   return (

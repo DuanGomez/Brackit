@@ -1,0 +1,23 @@
+.team-editor { display: flex; flex-direction: column; gap: 16px; }
+.te-preview { display: flex; align-items: center; gap: 16px; padding: 14px; border-radius: 18px; background: var(--fill); }
+.te-preview img { width: 112px; height: 112px; object-fit: contain; flex: none; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.18)); }
+.te-preview div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.te-preview b { font-size: 19px; font-weight: 700; letter-spacing: -0.02em; overflow-wrap: anywhere; }
+.te-preview .muted { font-size: 13px; }
+.te-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.te-swatches { display: flex; flex-wrap: wrap; gap: 7px; }
+.te-swatch { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line-strong); cursor: pointer; padding: 0; position: relative; }
+.te-swatch.active { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--primary); }
+.te-custom { background: conic-gradient(#ff3b30, #ff9f0a, #f5c542, #18c46a, #1f5bff, #af52de, #ff3b30); overflow: hidden; }
+.te-custom input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.te-styles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.te-style { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 6px 10px; border-radius: 16px; border: 2px solid var(--card-border);
+  background: var(--surface); cursor: pointer; color: var(--text-2); }
+.te-style img { width: 56px; height: 56px; object-fit: contain; }
+.te-style small { font-size: 12.5px; font-weight: 600; }
+.te-style.active { border-color: var(--primary); background: var(--primary-soft); color: var(--link); }
+.te-upload { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; padding: 22px 16px; border-radius: 18px;
+  border: 2px dashed var(--line-strong); color: var(--muted); }
+.te-upload p { font-size: 14px; color: var(--text); }
+.te-actions { display: flex; justify-content: flex-end; gap: 10px; position: sticky; bottom: -22px; background: var(--surface); padding: 10px 0 2px; }
+@media (max-width: 420px) { .te-preview img { width: 84px; height: 84px; } }
