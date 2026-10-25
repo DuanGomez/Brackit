@@ -1,0 +1,15 @@
+.t-card { display: flex; flex-direction: column; background: var(--surface); border-radius: var(--radius);
+  box-shadow: var(--shadow); overflow: hidden; transition: transform 0.2s, box-shadow 0.2s; }
+.t-card:hover { transform: translateY(-3px); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05), 0 16px 36px rgba(0, 0, 0, 0.1); }
+.t-card-photo { position: relative; aspect-ratio: 16 / 9; background: #e5e5ea; overflow: hidden; }
+.t-card-photo img { width: 100%; height: 100%; object-fit: cover; }
+.t-card-sport { position: absolute; left: 12px; bottom: 12px; display: inline-flex; align-items: center; gap: 6px;
+  height: 28px; padding: 0 11px; border-radius: 999px; background: rgba(255, 255, 255, 0.94); font-size: 13px; font-weight: 650; }
+.t-card-status { position: absolute; right: 12px; top: 12px; background: rgba(255, 255, 255, 0.94); }
+.t-card-body { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.t-card-body h3 { font-size: 18px; font-weight: 650; letter-spacing: -0.018em; line-height: 1.25; }
+.t-card-body p { font-size: 14px; }
+.t-card-champion { margin-top: auto; padding-top: 8px; display: flex; align-items: center; gap: 7px; font-weight: 600; color: #a77b00; }
+.t-card-progress { margin-top: auto; padding-top: 10px; display: flex; align-items: center; gap: 10px; }
+.bar { flex: 1; height: 6px; border-radius: 6px; background: rgba(0, 0, 0, 0.07); overflow: hidden; }
+.bar span { display: block; height: 100%; border-radius: 6px; }

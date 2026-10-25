@@ -1,0 +1,14 @@
+.auth { display: grid; grid-template-columns: 1fr 1fr; min-height: calc(100dvh - var(--header-h)); }
+.auth-photo { background-size: cover; background-position: center; }
+.auth-panel { display: flex; align-items: center; justify-content: center; padding: 48px 20px; background: var(--surface); }
+.auth-box { width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 14px; }
+.auth-box .title { margin-top: 6px; }
+.auth-box form { margin-top: 10px; }
+.auth-foot { font-size: 14.5px; color: var(--muted); text-align: center; }
+.auth-foot a { color: var(--accent); font-weight: 600; }
+.pin-input { font-size: 24px; letter-spacing: 0.5em; text-align: center; font-variant-numeric: tabular-nums; }
+.demo-hint { margin-top: 10px; padding: 16px; border-radius: var(--radius-sm); background: var(--bg); display: flex; flex-direction: column; gap: 6px; align-items: flex-start; font-size: 14.5px; }
+@media (max-width: 860px) {
+  .auth { grid-template-columns: 1fr; }
+  .auth-photo { height: 180px; }
+}

@@ -1,0 +1,13 @@
+.sheet-backdrop { position: fixed; inset: 0; z-index: 90; background: rgba(0, 0, 0, 0.36); display: flex; align-items: center;
+  justify-content: center; padding: 20px; animation: fade 0.15s ease-out; }
+.sheet { width: 100%; max-width: 480px; max-height: min(86dvh, 720px); background: var(--surface); border-radius: 22px;
+  box-shadow: var(--shadow-lg); display: flex; flex-direction: column; overflow: hidden; animation: rise 0.2s ease-out; }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--line); }
+.sheet-head h2 { font-size: 18px; font-weight: 650; letter-spacing: -0.015em; }
+.sheet-body { padding: 16px 20px 22px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+@keyframes fade { from { opacity: 0; } }
+@keyframes rise { from { transform: translateY(16px); opacity: 0; } }
+@media (max-width: 560px) {
+  .sheet-backdrop { align-items: flex-end; padding: 0; }
+  .sheet { max-width: none; border-radius: 22px 22px 0 0; }
+}

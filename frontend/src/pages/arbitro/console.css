@@ -1,0 +1,34 @@
+.console { display: flex; flex-direction: column; gap: 16px; }
+.console-start { height: 60px; font-size: 18px; }
+.console-teams { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 640px) { .console-teams { grid-template-columns: 1fr; } }
+.console-team { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.console-actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.console-btn { height: 56px; border-radius: 14px; border: 1px solid var(--line-strong); background: var(--surface);
+  font-size: 15px; font-weight: 650; cursor: pointer; transition: transform 0.08s, background 0.15s; }
+.console-btn:active { transform: scale(0.97); }
+.console-btn.primary { background: var(--text); color: #fff; border-color: var(--text); font-size: 18px; }
+.console-btn.ev-YELLOW_CARD { border-left: 6px solid #ffcc00; }
+.console-btn.ev-RED_CARD { border-left: 6px solid #e5484d; }
+.console-btn:disabled { opacity: 0.5; }
+
+.console-points { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.console-point { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 170px;
+  border-radius: var(--radius); border: 0; background: var(--text); color: #fff; cursor: pointer; padding: 16px;
+  transition: transform 0.08s; }
+.console-point:active { transform: scale(0.97); }
+.console-point span { font-size: 22px; font-weight: 750; }
+.console-point strong { font-size: 14px; font-weight: 550; opacity: 0.8; text-align: center; }
+.console-point:disabled { opacity: 0.6; }
+
+.console-bar { display: flex; gap: 10px; flex-wrap: wrap; }
+.console-bar .btn { flex: 1; min-width: 140px; height: 50px; }
+
+.console-log li { display: grid; grid-template-columns: 54px 1fr auto; gap: 10px; padding: 10px 20px; border-top: 1px solid var(--line); font-size: 14.5px; }
+.console-log li:first-child { border-top: 0; }
+
+.player-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.player-btn { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 8px 12px; border-radius: 12px;
+  border: 1px solid var(--line-strong); background: var(--surface); text-align: left; font-size: 14.5px; font-weight: 550; cursor: pointer; }
+.player-btn span { width: 26px; height: 26px; border-radius: 8px; background: var(--bg); display: grid; place-items: center; font-size: 13px; font-weight: 700; flex: none; }
+.player-btn:hover { background: var(--surface-2); }
