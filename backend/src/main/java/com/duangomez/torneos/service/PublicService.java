@@ -40,11 +40,11 @@ public class PublicService {
         this.views = views;
     }
 
-    /** Organizaciones con torneos publicados (para "Ligas en vivo" en el sitio). */
+    /** Vitrina del sitio ("Ligas en vivo"): solo las organizaciones demo. Las de clientes se comparten por su enlace /l/{slug}. */
     @Transactional(readOnly = true)
     public List<PublicOrgCardDto> organizations() {
         List<PublicOrgCardDto> out = new ArrayList<>();
-        for (Organization o : organizations.findAllByOrderByNameAsc()) {
+        for (Organization o : organizations.findByDemoTrue()) {
             List<Tournament> visible = tournaments.findByOrganizationIdAndStatusInOrderByCreatedAtDesc(o.getId(), VISIBLE);
             if (visible.isEmpty()) continue;
             int live = matches.findByOrganizationAndStatus(o.getId(), List.of(MatchStatus.LIVE)).size();
