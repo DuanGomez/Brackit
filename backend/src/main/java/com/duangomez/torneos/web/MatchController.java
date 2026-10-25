@@ -2,63 +2,99 @@ package com.duangomez.torneos.web;
 
 import com.duangomez.torneos.security.AuthPrincipal;
 import com.duangomez.torneos.service.MatchService;
-import com.duangomez.torneos.service.TournamentService;
 import com.duangomez.torneos.web.Dtos.*;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-/** Control del partido: lo usan el árbitro (con PIN) y el organizador. */
+import java.util.List;
+
+/** Programación y operación en vivo de los partidos de una organización. */
 @RestController
-@RequestMapping("/api/matches/{id}")
+@RequestMapping("/api/orgs/{org}/matches/{id}")
 public class MatchController {
 
     private final MatchService matches;
-    private final TournamentService tournaments;
 
-    public MatchController(MatchService matches, TournamentService tournaments) {
+    public MatchController(MatchService matches) {
         this.matches = matches;
-        this.tournaments = tournaments;
+    }
+
+    @GetMapping
+    public MatchDetailDto get(@PathVariable String org, @PathVariable Long id, @AuthenticationPrincipal AuthPrincipal me) {
+        return matches.get(org, id, me);
+    }
+
+    @PostMapping("/check")
+    public List<ConflictDto> check(@PathVariable String org, @PathVariable Long id, @Valid @RequestBody PlaceRequest req,
+                                   @AuthenticationPrincipal AuthPrincipal me) {
+        return matches.check(org, id, req, me);
+    }
+
+    @PutMapping("/place")
+    public MatchCardDto place(@PathVariable String org, @PathVariable Long id, @Valid @RequestBody PlaceRequest req,
+                              @AuthenticationPrincipal AuthPrincipal me) {
+        return matches.place(org, id, req, me);
+    }
+
+    @DeleteMapping("/place")
+    public MatchCardDto unplace(@PathVariable String org, @PathVariable Long id, @AuthenticationPrincipal AuthPrincipal me) {
+        return matches.unplace(org, id, me);
+    }
+
+    @PutMapping("/referee")
+    public MatchCardDto referee(@PathVariable String org, @PathVariable Long id, @RequestBody RefereeRequest req,
+                                @AuthenticationPrincipal AuthPrincipal me) {
+        return matches.assignReferee(org, id, req, me);
+    }
+
+    @PostMapping("/cancel")
+    public MatchCardDto cancel(@PathVariable String org, @PathVariable Long id, @Valid @RequestBody(required = false) CancelRequest req,
+                               @AuthenticationPrincipal AuthPrincipal me) {
+        return matches.cancel(org, id, req, me);
+    }
+
+    @PostMapping("/restore")
+    public MatchCardDto restore(@PathVariable String org, @PathVariable Long id, @AuthenticationPrincipal AuthPrincipal me) {
+        return matches.restore(org, id, me);
     }
 
     @PostMapping("/start")
-    public MatchDetailDto start(@PathVariable Long id, @AuthenticationPrincipal AuthPrincipal me) {
-        return matches.start(id, me);
+    public MatchDetailDto start(@PathVariable String org, @PathVariable Long id, @AuthenticationPrincipal AuthPrincipal me) {
+        return matches.start(org, id, me);
     }
 
     @PostMapping("/events")
-    public MatchDetailDto event(@PathVariable Long id, @Valid @RequestBody EventRequest req, @AuthenticationPrincipal AuthPrincipal me) {
-        return matches.addEvent(id, req, me);
+    public MatchDetailDto event(@PathVariable String org, @PathVariable Long id, @Valid @RequestBody EventRequest req,
+                                @AuthenticationPrincipal AuthPrincipal me) {
+        return matches.addEvent(org, id, req, me);
     }
 
     @PostMapping("/points")
-    public MatchDetailDto point(@PathVariable Long id, @Valid @RequestBody PointRequest req, @AuthenticationPrincipal AuthPrincipal me) {
-        return matches.addPoint(id, req, me);
+    public MatchDetailDto point(@PathVariable String org, @PathVariable Long id, @Valid @RequestBody PointRequest req,
+                                @AuthenticationPrincipal AuthPrincipal me) {
+        return matches.addPoint(org, id, req, me);
     }
 
     @PostMapping("/period")
-    public MatchDetailDto period(@PathVariable Long id, @AuthenticationPrincipal AuthPrincipal me) {
-        return matches.nextPeriod(id, me);
+    public MatchDetailDto period(@PathVariable String org, @PathVariable Long id, @AuthenticationPrincipal AuthPrincipal me) {
+        return matches.nextPeriod(org, id, me);
     }
 
     @PostMapping("/undo")
-    public MatchDetailDto undo(@PathVariable Long id, @AuthenticationPrincipal AuthPrincipal me) {
-        return matches.undo(id, me);
+    public MatchDetailDto undo(@PathVariable String org, @PathVariable Long id, @AuthenticationPrincipal AuthPrincipal me) {
+        return matches.undo(org, id, me);
     }
 
     @PostMapping("/finish")
-    public MatchDetailDto finish(@PathVariable Long id, @RequestBody(required = false) FinishRequest req,
+    public MatchDetailDto finish(@PathVariable String org, @PathVariable Long id, @RequestBody(required = false) FinishRequest req,
                                  @AuthenticationPrincipal AuthPrincipal me) {
-        return matches.finish(id, req, me);
+        return matches.finish(org, id, req, me);
     }
 
     @PutMapping("/result")
-    public MatchDetailDto result(@PathVariable Long id, @Valid @RequestBody ResultRequest req, @AuthenticationPrincipal AuthPrincipal me) {
-        return matches.setResult(id, req, me);
-    }
-
-    @PutMapping("/schedule")
-    public MatchDto schedule(@PathVariable Long id, @Valid @RequestBody MatchScheduleRequest req, @AuthenticationPrincipal AuthPrincipal me) {
-        return tournaments.scheduleMatch(id, req, me);
+    public MatchDetailDto result(@PathVariable String org, @PathVariable Long id, @Valid @RequestBody ResultRequest req,
+                                 @AuthenticationPrincipal AuthPrincipal me) {
+        return matches.setResult(org, id, req, me);
     }
 }

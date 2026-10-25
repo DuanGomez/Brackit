@@ -10,13 +10,15 @@ import java.util.Optional;
 
 public interface TournamentRepository extends JpaRepository<Tournament, Long> {
 
-    Optional<Tournament> findBySlug(String slug);
+    List<Tournament> findByOrganizationIdOrderByCreatedAtDesc(Long organizationId);
 
-    boolean existsBySlug(String slug);
+    List<Tournament> findByOrganizationIdAndStatusInOrderByCreatedAtDesc(Long organizationId, Collection<TournamentStatus> statuses);
 
-    List<Tournament> findByOwnerIdOrderByCreatedAtDesc(Long ownerId);
+    Optional<Tournament> findByOrganizationIdAndSlug(Long organizationId, String slug);
 
-    List<Tournament> findByStatusInOrderByUpdatedAtDesc(Collection<TournamentStatus> statuses);
+    boolean existsByOrganizationIdAndSlug(Long organizationId, String slug);
 
-    List<Tournament> findByDemoTrue();
+    long countByOrganizationIdAndStatusIn(Long organizationId, Collection<TournamentStatus> statuses);
+
+    List<Tournament> findByOrganizationDemoTrue();
 }

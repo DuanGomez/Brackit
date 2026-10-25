@@ -12,12 +12,15 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import java.time.Instant;
+
 /**
  * Publica los cambios por WebSocket (STOMP) cuando la transacción ya se confirmó,
  * para que nadie vea en vivo un marcador que luego se revierte.
  * <ul>
  *   <li>/topic/matches/{id}: detalle del partido con su línea de tiempo.</li>
- *   <li>/topic/tournaments/{slug}: el partido, la tabla y los goleadores; o "refresh" si cambió la estructura.</li>
+ *   <li>/topic/tournaments/{id}: el partido, la tabla y los goleadores; o "refresh" si cambió la estructura.</li>
+ *   <li>/topic/orgs/{slug}: aviso para que el panel y el calendario de la organización se recarguen.</li>
  * </ul>
  */
 @Component
@@ -27,7 +30,11 @@ public class LiveBroadcaster {
     public record MatchChanged(Long tournamentId, Long matchId, boolean structural) {
     }
 
-    /** Evento interno: cambió el torneo completo (equipos, calendario). */
+    /** Aviso del canal de la organización. */
+    public record OrgChanged(String type, Long tournamentId, Instant at) {
+    }
+
+    /** Evento interno: cambió el torneo completo (equipos, calendario, programación). */
     public record TournamentChanged(Long tournamentId) {
     }
 
@@ -62,15 +69,22 @@ public class LiveBroadcaster {
         if (match == null || tournament == null) return;
 
         messaging.convertAndSend("/topic/matches/" + match.getId(), TournamentViews.detail(match));
-        String topic = "/topic/tournaments/" + tournament.getSlug();
+        String topic = "/topic/tournaments/" + tournament.getId();
         messaging.convertAndSend(topic, views.liveUpdate(tournament, match));
         if (event.structural()) messaging.convertAndSend(topic, TournamentViews.refresh(tournament));
+        notifyOrg(tournament);
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
     public void onTournamentChanged(TournamentChanged event) {
-        tournaments.findById(event.tournamentId()).ifPresent(t ->
-                messaging.convertAndSend("/topic/tournaments/" + t.getSlug(), TournamentViews.refresh(t)));
+        tournaments.findById(event.tournamentId()).ifPresent(t -> {
+            messaging.convertAndSend("/topic/tournaments/" + t.getId(), TournamentViews.refresh(t));
+            notifyOrg(t);
+        });
+    }
+
+    private void notifyOrg(Tournament t) {
+        messaging.convertAndSend("/topic/orgs/" + t.getOrganization().getSlug(), new OrgChanged("changed", t.getId(), Instant.now()));
     }
 }

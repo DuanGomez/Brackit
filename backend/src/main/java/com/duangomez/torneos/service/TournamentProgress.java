@@ -11,12 +11,18 @@ import com.duangomez.torneos.engine.StandingsCalculator.Row;
 import com.duangomez.torneos.web.ApiException;
 import org.springframework.stereotype.Component;
 
-import java.time.*;
+import java.time.LocalDate;
 import java.util.*;
 
 /** Qué pasa después de cada resultado: avanzar en la llave, cerrar grupos o coronar campeón. */
 @Component
 public class TournamentProgress {
+
+    private final SchedulingService scheduling;
+
+    public TournamentProgress(SchedulingService scheduling) {
+        this.scheduling = scheduling;
+    }
 
     /**
      * Aplica las consecuencias de un partido terminado (o corregido).
@@ -28,6 +34,7 @@ public class TournamentProgress {
         Tournament t = match.getTournament();
         return switch (match.getStage()) {
             case KNOCKOUT -> advanceKnockout(t, match, previousWinner);
+            case THIRD_PLACE -> false;
             case LEAGUE -> closeLeagueIfDone(t);
             case GROUP -> closeGroupsIfDone(t);
         };
@@ -49,13 +56,21 @@ public class TournamentProgress {
             throw ApiException.conflict("El siguiente cruce ya empezó: no se puede cambiar quién avanzó");
         }
         ScheduleBuilder.placeInSlot(next, match.getBracketPosition(), winner);
+
+        // Perdedores de semifinales al partido por el tercer puesto
+        if (match.getRoundNumber() == totalRounds - 1) {
+            t.getMatches().stream().filter(m -> m.getStage() == Stage.THIRD_PLACE).findFirst().ifPresent(third -> {
+                Team loser = match.isHome(winner.getId()) ? match.getAway() : match.getHome();
+                if (third.getStatus() == MatchStatus.SCHEDULED) ScheduleBuilder.placeInSlot(third, match.getBracketPosition(), loser);
+            });
+        }
         return true;
     }
 
     private boolean closeLeagueIfDone(Tournament t) {
         boolean done = t.getMatches().stream()
                 .filter(m -> m.getStage() == Stage.LEAGUE)
-                .allMatch(m -> m.getStatus() == MatchStatus.FINISHED);
+                .allMatch(m -> m.getStatus() == MatchStatus.FINISHED || m.getStatus() == MatchStatus.CANCELLED);
         if (!done) return false;
         List<Row> table = TournamentViews.rows(t, t.getTeams(), Stage.LEAGUE, null);
         Long champion = table.isEmpty() ? null : table.get(0).teamId();
@@ -65,10 +80,10 @@ public class TournamentProgress {
         return changed;
     }
 
-    /** Al terminar el último partido de grupos se arma la fase final con los clasificados. */
+    /** Al terminar el último partido de grupos se arma la fase final y se programa sola. */
     private boolean closeGroupsIfDone(Tournament t) {
         List<Match> groupMatches = t.getMatches().stream().filter(m -> m.getStage() == Stage.GROUP).toList();
-        boolean done = groupMatches.stream().allMatch(m -> m.getStatus() == MatchStatus.FINISHED);
+        boolean done = groupMatches.stream().allMatch(m -> m.getStatus() == MatchStatus.FINISHED || m.getStatus() == MatchStatus.CANCELLED);
         boolean hasKnockout = t.getMatches().stream().anyMatch(m -> m.getStage() == Stage.KNOCKOUT);
         if (!done || hasKnockout) return false;
 
@@ -82,26 +97,17 @@ public class TournamentProgress {
         t.getTeams().forEach(team -> teamsById.put(team.getId(), team));
         List<Match> knockout = ScheduleBuilder.knockout(t,
                 BracketGenerator.fromGroups(qualifiers, t.getAdvancePerGroup()), teamsById);
-        ScheduleBuilder.assignDates(knockout, planAfter(groupMatches), 0);
         t.getMatches().addAll(knockout);
-        return true;
-    }
 
-    /** La fase final sigue el ritmo de los grupos: mismas sedes y hora, una ronda por "salto" de jornada. */
-    private static ScheduleBuilder.Plan planAfter(List<Match> groupMatches) {
-        ZoneId zone = ZoneId.of("America/Bogota");
-        List<Match> dated = groupMatches.stream().filter(m -> m.getScheduledAt() != null)
-                .sorted(Comparator.comparing(Match::getScheduledAt)).toList();
-        if (dated.isEmpty()) {
-            return new ScheduleBuilder.Plan(LocalDate.now(zone).plusDays(7), LocalTime.of(15, 0), 7, 120, List.of(), zone);
-        }
-        LocalDate first = dated.get(0).getScheduledAt().atZone(zone).toLocalDate();
-        LocalDate last = dated.get(dated.size() - 1).getScheduledAt().atZone(zone).toLocalDate();
-        LocalTime time = dated.get(0).getScheduledAt().atZone(zone).toLocalTime();
-        int maxRound = groupMatches.stream().mapToInt(Match::getRoundNumber).max().orElse(1);
-        int gap = maxRound > 1 ? (int) Math.max(1, Duration.between(first.atStartOfDay(), last.atStartOfDay()).toDays() / (maxRound - 1)) : 7;
-        List<String> venues = dated.stream().map(Match::getVenue).filter(Objects::nonNull).distinct().toList();
-        return new ScheduleBuilder.Plan(last.plusDays(gap), time, gap, 120, venues, zone);
+        LocalDate lastGroupDay = groupMatches.stream()
+                .filter(m -> m.getScheduledAt() != null)
+                .map(m -> m.getScheduledAt().atZone(SchedulingService.ZONE).toLocalDate())
+                .max(Comparator.naturalOrder())
+                .orElse(LocalDate.now(SchedulingService.ZONE));
+        LocalDate today = LocalDate.now(SchedulingService.ZONE);
+        LocalDate start = lastGroupDay.plusDays(Math.max(1, t.getDaysBetween()));
+        scheduling.autoPlace(t, knockout, start.isBefore(today) ? today.plusDays(1) : start);
+        return true;
     }
 
     private static Match findKnockout(Tournament t, int round, int position) {

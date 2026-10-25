@@ -1,6 +1,6 @@
 package com.duangomez.torneos.web;
 
-import com.duangomez.torneos.service.TournamentService;
+import com.duangomez.torneos.service.PublicService;
 import com.duangomez.torneos.service.TournamentViews;
 import com.duangomez.torneos.sport.Sport;
 import com.duangomez.torneos.web.Dtos.*;
@@ -15,10 +15,10 @@ import java.util.Map;
 @RequestMapping("/api")
 public class PublicController {
 
-    private final TournamentService tournaments;
+    private final PublicService publics;
 
-    public PublicController(TournamentService tournaments) {
-        this.tournaments = tournaments;
+    public PublicController(PublicService publics) {
+        this.publics = publics;
     }
 
     @GetMapping("/health")
@@ -31,19 +31,23 @@ public class PublicController {
         return Arrays.stream(Sport.values()).map(TournamentViews::sport).toList();
     }
 
-    @GetMapping("/public/tournaments")
-    public List<TournamentCardDto> list(@RequestParam(required = false) Sport sport,
-                                        @RequestParam(required = false) String q) {
-        return tournaments.listPublic(sport, q);
+    @GetMapping("/public/orgs")
+    public List<PublicOrgCardDto> organizations() {
+        return publics.organizations();
     }
 
-    @GetMapping("/public/tournaments/{slug}")
-    public TournamentDto tournament(@PathVariable String slug) {
-        return tournaments.getPublic(slug);
+    @GetMapping("/public/orgs/{org}")
+    public PublicOrgDto organization(@PathVariable String org) {
+        return publics.organization(org);
+    }
+
+    @GetMapping("/public/orgs/{org}/tournaments/{slug}")
+    public TournamentDto tournament(@PathVariable String org, @PathVariable String slug) {
+        return publics.tournament(org, slug);
     }
 
     @GetMapping("/public/matches/{id}")
     public MatchDetailDto match(@PathVariable Long id) {
-        return tournaments.getMatch(id);
+        return publics.match(id);
     }
 }

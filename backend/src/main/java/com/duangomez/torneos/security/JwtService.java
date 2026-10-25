@@ -1,6 +1,5 @@
 package com.duangomez.torneos.security;
 
-import com.duangomez.torneos.security.AuthPrincipal.Role;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -19,42 +18,30 @@ import java.util.Optional;
 public class JwtService {
 
     private final SecretKey key;
-    private final Duration organizerTtl;
-    private final Duration refereeTtl;
+    private final Duration ttl;
 
-    public JwtService(@Value("${app.jwt.secret}") String secret,
-                      @Value("${app.jwt.organizer-hours:168}") long organizerHours,
-                      @Value("${app.jwt.referee-hours:12}") long refereeHours) {
+    public JwtService(@Value("${app.jwt.secret}") String secret, @Value("${app.jwt.hours:168}") long hours) {
         byte[] bytes = secret.getBytes(StandardCharsets.UTF_8);
         if (bytes.length < 32) throw new IllegalStateException("app.jwt.secret debe tener al menos 32 caracteres");
         this.key = Keys.hmacShaKeyFor(bytes);
-        this.organizerTtl = Duration.ofHours(organizerHours);
-        this.refereeTtl = Duration.ofHours(refereeHours);
+        this.ttl = Duration.ofHours(hours);
     }
 
     public String issue(AuthPrincipal principal) {
         Instant now = Instant.now();
-        Duration ttl = principal.isOrganizer() ? organizerTtl : refereeTtl;
-        var builder = Jwts.builder()
-                .subject(principal.isOrganizer() ? String.valueOf(principal.userId()) : "referee")
+        return Jwts.builder()
+                .subject(String.valueOf(principal.userId()))
                 .claim("name", principal.name())
-                .claim("role", principal.role().name())
                 .issuedAt(Date.from(now))
-                .expiration(Date.from(now.plus(ttl)));
-        if (principal.tournamentId() != null) builder.claim("tid", principal.tournamentId());
-        return builder.signWith(key).compact();
+                .expiration(Date.from(now.plus(ttl)))
+                .signWith(key)
+                .compact();
     }
 
     public Optional<AuthPrincipal> parse(String token) {
         try {
             Claims claims = Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
-            Role role = Role.valueOf(claims.get("role", String.class));
-            String name = claims.get("name", String.class);
-            if (role == Role.ORGANIZER) {
-                return Optional.of(AuthPrincipal.organizer(Long.valueOf(claims.getSubject()), name));
-            }
-            Number tid = claims.get("tid", Number.class);
-            return tid == null ? Optional.empty() : Optional.of(AuthPrincipal.referee(tid.longValue()));
+            return Optional.of(new AuthPrincipal(Long.valueOf(claims.getSubject()), claims.get("name", String.class)));
         } catch (JwtException | IllegalArgumentException e) {
             return Optional.empty();
         }

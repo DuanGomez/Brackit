@@ -30,13 +30,8 @@ public class AuthController {
         return auth.login(req, http.getRemoteAddr());
     }
 
-    @PostMapping("/referee")
-    public AuthResponse referee(@Valid @RequestBody RefereeLoginRequest req, HttpServletRequest http) {
-        return auth.refereeLogin(req, http.getRemoteAddr());
-    }
-
     @GetMapping("/me")
-    public UserDto me(@AuthenticationPrincipal AuthPrincipal principal) {
+    public SessionDto me(@AuthenticationPrincipal AuthPrincipal principal) {
         return auth.me(principal);
     }
 }

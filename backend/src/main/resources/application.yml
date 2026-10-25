@@ -34,8 +34,7 @@ app:
     origins: ${CORS_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
   jwt:
     secret: ${JWT_SECRET:solo-para-desarrollo-cambiar-en-produccion-0123456789}
-    organizer-hours: 168
-    referee-hours: 12
+    hours: 168
   demo:
     # Crea un organizador de prueba y torneos de varios deportes si la base está vacía
     enabled: ${DEMO_ENABLED:true}

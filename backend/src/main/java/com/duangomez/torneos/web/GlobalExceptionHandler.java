@@ -25,6 +25,12 @@ public class GlobalExceptionHandler {
         return body(e.status(), e.getMessage());
     }
 
+    @ExceptionHandler(ConflictException.class)
+    ResponseEntity<Map<String, Object>> conflicts(ConflictException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("status", 409, "message", e.getMessage(), "conflicts", e.conflicts()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ResponseEntity<Map<String, Object>> validation(MethodArgumentNotValidException e) {
         String message = e.getBindingResult().getFieldErrors().stream()

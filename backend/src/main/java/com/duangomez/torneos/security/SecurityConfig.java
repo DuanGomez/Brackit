@@ -31,11 +31,10 @@ public class SecurityConfig {
                 .cors(cors -> {})
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/referee").permitAll()
+                        .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/public/**", "/api/sports", "/api/health").permitAll()
                         .requestMatchers("/ws/**").permitAll()
-                        .requestMatchers("/api/tournaments/**", "/api/teams/**", "/api/players/**").hasRole("ORGANIZER")
-                        .requestMatchers("/api/matches/**").hasAnyRole("ORGANIZER", "REFEREE")
+                        // Lo demás exige sesión; el rol dentro de cada organización lo valida OrgAccess
                         .anyRequest().authenticated())
                 .exceptionHandling(e -> e
                         .authenticationEntryPoint((req, res, ex) -> writeError(res, 401,

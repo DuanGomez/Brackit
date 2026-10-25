@@ -50,10 +50,21 @@ public class Match {
     @JoinColumn(name = "away_team_id")
     private Team away;
 
+    /** Cancha asignada (nula mientras el partido no esté programado). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "court_id")
+    private Court court;
+
+    /** Árbitro asignado: un miembro de la organización. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "referee_id")
+    private AppUser referee;
+
     @Column(name = "scheduled_at")
     private Instant scheduledAt;
 
-    private String venue;
+    @Column(name = "cancel_reason")
+    private String cancelReason;
 
     @Enumerated(EnumType.STRING)
     private MatchStatus status = MatchStatus.SCHEDULED;
@@ -124,5 +135,10 @@ public class Match {
 
     public Long awayId() {
         return away == null ? null : away.getId();
+    }
+
+    /** Programado = tiene cancha y hora. */
+    public boolean isPlaced() {
+        return court != null && scheduledAt != null;
     }
 }

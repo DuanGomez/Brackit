@@ -1,6 +1,5 @@
 package com.duangomez.torneos.service;
 
-import com.duangomez.torneos.demo.DemoData;
 import com.duangomez.torneos.domain.*;
 import com.duangomez.torneos.domain.Enums.MatchStatus;
 import com.duangomez.torneos.domain.Enums.Stage;
@@ -10,144 +9,125 @@ import com.duangomez.torneos.engine.BracketGenerator;
 import com.duangomez.torneos.engine.FixtureGenerator;
 import com.duangomez.torneos.repo.*;
 import com.duangomez.torneos.security.AuthPrincipal;
-import com.duangomez.torneos.sport.Sport;
 import com.duangomez.torneos.web.ApiException;
 import com.duangomez.torneos.web.Dtos.*;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
-import java.text.Normalizer;
-import java.time.DateTimeException;
-import java.time.ZoneId;
+import java.time.LocalDate;
 import java.util.*;
 
+/** Torneos de una organización: datos, equipos, jugadores y calendario. */
 @Service
 public class TournamentService {
 
     static final int MAX_TEAMS = 64;
     private static final String[] PALETTE = {
-            "#0A84FF", "#FF453A", "#30D158", "#FF9F0A", "#BF5AF2", "#64D2FF", "#FFD60A", "#FF375F",
-            "#5E5CE6", "#32ADE6", "#AC8E68", "#66D4CF", "#E5484D", "#2E8B57", "#8E8E93", "#1C1C1E"};
+            "#1F5BFF", "#FF3B30", "#18C46A", "#FF9F0A", "#AF52DE", "#32ADE6", "#FFCC00", "#FF2D55",
+            "#5856D6", "#00C7BE", "#A2845E", "#30B0C7", "#E5484D", "#2E8B57", "#8E8E93", "#1C1C1E"};
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final TournamentRepository tournaments;
     private final TeamRepository teams;
     private final PlayerRepository players;
-    private final MatchRepository matches;
-    private final UserRepository users;
+    private final CourtRepository courts;
     private final TournamentViews views;
     private final LiveBroadcaster broadcaster;
-    private final PasswordEncoder encoder;
+    private final SchedulingService scheduling;
+    private final OrgAccess access;
 
     public TournamentService(TournamentRepository tournaments, TeamRepository teams, PlayerRepository players,
-                             MatchRepository matches, UserRepository users, TournamentViews views,
-                             LiveBroadcaster broadcaster, PasswordEncoder encoder) {
+                             CourtRepository courts, TournamentViews views, LiveBroadcaster broadcaster,
+                             SchedulingService scheduling, OrgAccess access) {
         this.tournaments = tournaments;
         this.teams = teams;
         this.players = players;
-        this.matches = matches;
-        this.users = users;
+        this.courts = courts;
         this.views = views;
         this.broadcaster = broadcaster;
-        this.encoder = encoder;
+        this.scheduling = scheduling;
+        this.access = access;
     }
 
     // ---------- Lectura ----------
 
     @Transactional(readOnly = true)
-    public List<TournamentCardDto> listPublic(Sport sport, String query) {
-        String q = query == null ? "" : normalize(query);
-        return tournaments.findByStatusInOrderByUpdatedAtDesc(List.of(TournamentStatus.IN_PROGRESS, TournamentStatus.FINISHED))
-                .stream()
-                .filter(t -> sport == null || t.getSport() == sport)
-                .filter(t -> q.isEmpty() || normalize(t.getName()).contains(q)
-                        || (t.getLocation() != null && normalize(t.getLocation()).contains(q)))
-                .map(TournamentViews::card)
-                .sorted(Comparator.comparing((TournamentCardDto c) -> c.liveCount() == 0)
-                        .thenComparing(c -> !"IN_PROGRESS".equals(c.status())))
-                .toList();
+    public List<TournamentCardDto> list(String org, AuthPrincipal principal) {
+        Organization o = access.require(org, principal).getOrganization();
+        return tournaments.findByOrganizationIdOrderByCreatedAtDesc(o.getId()).stream().map(TournamentViews::tournamentCard).toList();
     }
 
     @Transactional(readOnly = true)
-    public TournamentDto getPublic(String slug) {
-        Tournament t = bySlug(slug);
-        if (t.getStatus() == TournamentStatus.DRAFT) throw ApiException.notFound("Este torneo aún no está publicado");
-        return views.full(t, false);
-    }
-
-    @Transactional(readOnly = true)
-    public MatchDetailDto getMatch(Long matchId) {
-        Match m = matches.findById(matchId).orElseThrow(() -> ApiException.notFound("Partido no encontrado"));
-        if (m.getTournament().getStatus() == TournamentStatus.DRAFT) throw ApiException.notFound("Partido no encontrado");
-        return TournamentViews.detail(m);
-    }
-
-    @Transactional(readOnly = true)
-    public List<TournamentCardDto> listMine(AuthPrincipal principal) {
-        return tournaments.findByOwnerIdOrderByCreatedAtDesc(principal.userId()).stream().map(TournamentViews::card).toList();
-    }
-
-    @Transactional(readOnly = true)
-    public TournamentDto getForOwner(Long id, AuthPrincipal principal) {
-        Tournament t = byId(id);
-        Access.requireOwner(t, principal);
-        return views.full(t, true);
+    public TournamentDto get(String org, Long id, AuthPrincipal principal) {
+        Organization o = access.require(org, principal).getOrganization();
+        return views.full(byId(o, id));
     }
 
     // ---------- Torneo ----------
 
     @Transactional
-    public TournamentDto create(CreateTournamentRequest req, AuthPrincipal principal) {
-        AppUser owner = users.findById(principal.userId()).orElseThrow(() -> ApiException.forbidden("Cuenta no encontrada"));
+    public TournamentDto create(String org, CreateTournamentRequest req, AuthPrincipal principal) {
+        Organization o = access.requireManager(org, principal).getOrganization();
+        long active = tournaments.countByOrganizationIdAndStatusIn(o.getId(), OrgService.ACTIVE);
+        if (active >= o.getPlan().maxActiveTournaments()) {
+            throw ApiException.forbidden("Tu plan Gratis permite 1 torneo activo. Escríbenos para pasarte al plan Liga.");
+        }
         validateFormat(req.format(), req.groupsCount(), req.advancePerGroup());
 
         Tournament t = new Tournament();
-        t.setOwner(owner);
+        t.setOrganization(o);
         t.setName(req.name().trim());
-        t.setSlug(uniqueSlug(req.name()));
+        t.setSlug(uniqueSlug(o, req.name()));
+        t.setCategory(blankToNull(req.category()));
         t.setSport(req.sport());
         t.setFormat(req.format());
         t.setDescription(blankToNull(req.description()));
-        t.setLocation(blankToNull(req.location()));
         t.setStartDate(req.startDate());
         t.setDoubleRound(req.format() == TournamentFormat.LEAGUE && req.doubleRound());
         t.setGroupsCount(req.format() == TournamentFormat.GROUPS_KNOCKOUT ? req.groupsCount() : 0);
         t.setAdvancePerGroup(req.format() == TournamentFormat.GROUPS_KNOCKOUT ? req.advancePerGroup() : 0);
+        t.setThirdPlace(req.format() != TournamentFormat.LEAGUE && req.thirdPlace());
+        t.setBlockMinutes(req.blockMinutes() >= 15 ? req.blockMinutes() : req.sport().defaultBlockMinutes());
+        t.setMinRestHours(req.minRestHours());
+        t.setDaysBetween(req.daysBetween() >= 1 ? req.daysBetween() : 7);
+        setCourts(t, o, req.courtIds());
         if (req.teams() != null) {
             for (TeamInput input : req.teams()) addTeamTo(t, input);
         }
         tournaments.save(t);
-        return views.full(t, true);
+        return views.full(t);
     }
 
     @Transactional
-    public TournamentDto update(Long id, UpdateTournamentRequest req, AuthPrincipal principal) {
-        Tournament t = byId(id);
-        Access.requireOwner(t, principal);
+    public TournamentDto update(String org, Long id, UpdateTournamentRequest req, AuthPrincipal principal) {
+        Organization o = access.requireManager(org, principal).getOrganization();
+        Tournament t = byId(o, id);
         t.setName(req.name().trim());
+        t.setCategory(blankToNull(req.category()));
         t.setDescription(blankToNull(req.description()));
-        t.setLocation(blankToNull(req.location()));
         t.setStartDate(req.startDate());
+        t.setBlockMinutes(req.blockMinutes());
+        t.setMinRestHours(req.minRestHours());
+        t.setDaysBetween(req.daysBetween());
+        if (req.courtIds() != null) setCourts(t, o, req.courtIds());
         broadcaster.tournamentChanged(t);
-        return views.full(t, true);
+        return views.full(t);
     }
 
     @Transactional
-    public void delete(Long id, AuthPrincipal principal) {
-        Tournament t = byId(id);
-        Access.requireOwner(t, principal);
-        if (t.isDemo()) throw ApiException.forbidden("Los torneos de demostración no se pueden borrar (se reinician solos)");
-        tournaments.delete(t);
+    public void delete(String org, Long id, AuthPrincipal principal) {
+        Organization o = access.requireManager(org, principal).getOrganization();
+        if (o.isDemo()) throw ApiException.forbidden("En la demo no se borran torneos (se reinician solos)");
+        tournaments.delete(byId(o, id));
     }
 
     // ---------- Equipos y jugadores ----------
 
     @Transactional
-    public TeamDto addTeam(Long tournamentId, TeamInput input, AuthPrincipal principal) {
-        Tournament t = byId(tournamentId);
-        Access.requireOwner(t, principal);
+    public TeamDto addTeam(String org, Long tournamentId, TeamInput input, AuthPrincipal principal) {
+        Organization o = access.requireManager(org, principal).getOrganization();
+        Tournament t = byId(o, tournamentId);
         requireDraft(t, "Ya hay calendario: no se pueden agregar equipos");
         Team team = addTeamTo(t, input);
         teams.save(team);
@@ -155,21 +135,19 @@ public class TournamentService {
     }
 
     @Transactional
-    public TeamDto updateTeam(Long teamId, TeamInput input, AuthPrincipal principal) {
-        Team team = teamById(teamId);
-        Access.requireOwner(team.getTournament(), principal);
+    public TeamDto updateTeam(String org, Long teamId, TeamInput input, AuthPrincipal principal) {
+        Team team = team(org, teamId, principal);
         team.setName(input.name().trim());
         team.setShortName(shortName(input.shortName(), input.name()));
-        if (input.color() != null) team.setColor(input.color().toUpperCase());
+        if (input.color() != null) team.setColor(input.color().toUpperCase(Locale.ROOT));
         broadcaster.tournamentChanged(team.getTournament());
         return TournamentViews.team(team);
     }
 
     @Transactional
-    public void deleteTeam(Long teamId, AuthPrincipal principal) {
-        Team team = teamById(teamId);
+    public void deleteTeam(String org, Long teamId, AuthPrincipal principal) {
+        Team team = team(org, teamId, principal);
         Tournament t = team.getTournament();
-        Access.requireOwner(t, principal);
         requireDraft(t, "Ya hay calendario: no se pueden quitar equipos");
         t.getTeams().remove(team);
         int seed = 1;
@@ -177,61 +155,80 @@ public class TournamentService {
     }
 
     @Transactional
-    public PlayerDto addPlayer(Long teamId, PlayerInput input, AuthPrincipal principal) {
-        Team team = teamById(teamId);
-        Access.requireOwner(team.getTournament(), principal);
+    public PlayerDto addPlayer(String org, Long teamId, PlayerInput input, AuthPrincipal principal) {
+        Team team = team(org, teamId, principal);
         if (team.getPlayers().size() >= 40) throw ApiException.badRequest("Máximo 40 jugadores por equipo");
         Player p = new Player();
         p.setTeam(team);
         p.setName(input.name().trim());
         p.setShirtNumber(input.number());
+        p.setDocument(blankToNull(input.document()));
         team.getPlayers().add(p);
         players.save(p);
         broadcaster.tournamentChanged(team.getTournament());
-        return new PlayerDto(p.getId(), p.getName(), p.getShirtNumber());
+        return new PlayerDto(p.getId(), p.getName(), p.getShirtNumber(), p.getDocument());
     }
 
     @Transactional
-    public void deletePlayer(Long playerId, AuthPrincipal principal) {
-        Player p = players.findById(playerId).orElseThrow(() -> ApiException.notFound("Jugador no encontrado"));
-        Access.requireOwner(p.getTeam().getTournament(), principal);
+    public PlayerDto updatePlayer(String org, Long playerId, PlayerInput input, AuthPrincipal principal) {
+        Player p = player(org, playerId, principal);
+        p.setName(input.name().trim());
+        p.setShirtNumber(input.number());
+        p.setDocument(blankToNull(input.document()));
+        return new PlayerDto(p.getId(), p.getName(), p.getShirtNumber(), p.getDocument());
+    }
+
+    @Transactional
+    public void deletePlayer(String org, Long playerId, AuthPrincipal principal) {
+        Player p = player(org, playerId, principal);
         p.getTeam().getPlayers().remove(p);
         broadcaster.tournamentChanged(p.getTeam().getTournament());
     }
 
     // ---------- Calendario ----------
 
-    /** Genera todos los partidos según el formato y publica el torneo. */
+    /** Crea todos los partidos según el formato y los programa en las canchas del torneo. */
     @Transactional
-    public TournamentDto generateSchedule(Long id, ScheduleRequest req, AuthPrincipal principal) {
-        Tournament t = byId(id);
-        Access.requireOwner(t, principal);
+    public ScheduleResult generateSchedule(String org, Long id, ScheduleRequest req, AuthPrincipal principal) {
+        Organization o = access.requireManager(org, principal).getOrganization();
+        Tournament t = byId(o, id);
         requireDraft(t, "El calendario ya fue generado");
-        ScheduleBuilder.Plan plan = new ScheduleBuilder.Plan(req.startDate(), req.firstMatchTime(),
-                req.daysBetweenRounds(), req.minutesBetweenMatches(), req.venues(), zone(req.timeZone()));
-        buildSchedule(t, plan);
+        List<Match> created = buildSchedule(t);
         if (t.getStartDate() == null) t.setStartDate(req.startDate());
-        tournaments.saveAndFlush(t); // los partidos nuevos necesitan id antes de responder
-        return views.full(t, true);
+        // flush y no save: un save (merge) sobre una entidad gestionada reemplaza los partidos nuevos por copias
+        tournaments.flush();
+        int unplaced = scheduling.autoPlace(t, created, req.startDate());
+        tournaments.flush();
+        broadcaster.tournamentChanged(t);
+        int real = (int) created.stream().filter(m -> !m.isBye()).count();
+        return new ScheduleResult(real, real - unplaced, unplaced);
     }
 
-    /** Crea los partidos (también lo usa la demo). */
-    public void buildSchedule(Tournament t, ScheduleBuilder.Plan plan) {
+    /** Vuelve a intentar programar los partidos que quedaron sin cancha u hora (desde mañana). */
+    @Transactional
+    public ScheduleResult placePending(String org, Long id, AuthPrincipal principal) {
+        Organization o = access.requireManager(org, principal).getOrganization();
+        Tournament t = byId(o, id);
+        List<Match> pending = t.getMatches().stream()
+                .filter(m -> !m.isBye() && m.getStatus() == MatchStatus.SCHEDULED && !m.isPlaced()).toList();
+        int unplaced = scheduling.autoPlace(t, pending, LocalDate.now(SchedulingService.ZONE).plusDays(1));
+        broadcaster.tournamentChanged(t);
+        return new ScheduleResult(pending.size(), pending.size() - unplaced, unplaced);
+    }
+
+    /** Crea los partidos (también lo usa la demo). La cancha y la hora se asignan aparte. */
+    public List<Match> buildSchedule(Tournament t) {
         List<Team> roster = t.getTeams();
         validateTeamCount(t, roster.size());
+        Map<Long, Team> byId = new HashMap<>();
+        roster.forEach(team -> byId.put(team.getId(), team));
         List<Match> created;
         switch (t.getFormat()) {
             case LEAGUE -> created = ScheduleBuilder.roundRobin(t, roster, Stage.LEAGUE, null, t.isDoubleRound());
-            case KNOCKOUT -> {
-                Map<Long, Team> byId = new HashMap<>();
-                roster.forEach(team -> byId.put(team.getId(), team));
-                created = ScheduleBuilder.knockout(t,
-                        BracketGenerator.firstRound(roster.stream().map(Team::getId).toList()), byId);
-            }
+            case KNOCKOUT -> created = ScheduleBuilder.knockout(t,
+                    BracketGenerator.firstRound(roster.stream().map(Team::getId).toList()), byId);
             default -> {
                 List<List<Long>> groups = FixtureGenerator.snakeGroups(roster.stream().map(Team::getId).toList(), t.getGroupsCount());
-                Map<Long, Team> byId = new HashMap<>();
-                roster.forEach(team -> byId.put(team.getId(), team));
                 created = new ArrayList<>();
                 for (int g = 0; g < groups.size(); g++) {
                     String label = FixtureGenerator.groupLabel(g);
@@ -241,60 +238,54 @@ public class TournamentService {
                 }
             }
         }
-        ScheduleBuilder.assignDates(created, plan, 0);
         t.getMatches().addAll(created);
         t.setStatus(TournamentStatus.IN_PROGRESS);
-    }
-
-    @Transactional
-    public MatchDto scheduleMatch(Long matchId, MatchScheduleRequest req, AuthPrincipal principal) {
-        Match m = matches.findById(matchId).orElseThrow(() -> ApiException.notFound("Partido no encontrado"));
-        Access.requireOwner(m.getTournament(), principal);
-        if (m.getStatus() != MatchStatus.SCHEDULED) throw ApiException.badRequest("Solo se reprograman partidos sin empezar");
-        m.setScheduledAt(req.scheduledAt());
-        m.setVenue(blankToNull(req.venue()));
-        broadcaster.matchChanged(m, false);
-        return TournamentViews.match(m, TournamentViews.knockoutRounds(m.getTournament()));
-    }
-
-    // ---------- Árbitros ----------
-
-    /** Nuevo PIN de 6 dígitos. Se devuelve una sola vez; se guarda cifrado. */
-    @Transactional
-    public PinResponse regeneratePin(Long id, AuthPrincipal principal) {
-        Tournament t = byId(id);
-        Access.requireOwner(t, principal);
-        // En la demo el PIN es público y fijo: regenerarlo dejaría sin acceso al resto de visitantes
-        if (t.isDemo()) return new PinResponse(DemoData.REFEREE_PIN);
-        String pin = String.format("%06d", RANDOM.nextInt(1_000_000));
-        t.setRefereePinHash(encoder.encode(pin));
-        return new PinResponse(pin);
+        return created;
     }
 
     // ---------- Apoyo ----------
 
-    Tournament byId(Long id) {
-        return tournaments.findById(id).orElseThrow(() -> ApiException.notFound("Torneo no encontrado"));
+    Tournament byId(Organization o, Long id) {
+        Tournament t = tournaments.findById(id).orElseThrow(() -> ApiException.notFound("Torneo no encontrado"));
+        OrgAccess.sameOrg(t, o);
+        return t;
     }
 
-    Tournament bySlug(String slug) {
-        return tournaments.findBySlug(slug).orElseThrow(() -> ApiException.notFound("Torneo no encontrado"));
+    private Team team(String org, Long id, AuthPrincipal principal) {
+        Organization o = access.requireManager(org, principal).getOrganization();
+        Team team = teams.findById(id).orElseThrow(() -> ApiException.notFound("Equipo no encontrado"));
+        OrgAccess.sameOrg(team.getTournament(), o);
+        return team;
     }
 
-    private Team teamById(Long id) {
-        return teams.findById(id).orElseThrow(() -> ApiException.notFound("Equipo no encontrado"));
+    private Player player(String org, Long id, AuthPrincipal principal) {
+        Organization o = access.requireManager(org, principal).getOrganization();
+        Player p = players.findById(id).orElseThrow(() -> ApiException.notFound("Jugador no encontrado"));
+        OrgAccess.sameOrg(p.getTeam().getTournament(), o);
+        return p;
+    }
+
+    private void setCourts(Tournament t, Organization o, List<Long> courtIds) {
+        t.getCourts().clear();
+        if (courtIds == null) return;
+        for (Long id : courtIds) {
+            Court c = courts.findById(id).orElseThrow(() -> ApiException.badRequest("Cancha no encontrada"));
+            if (!c.getVenue().getOrganization().getId().equals(o.getId())) throw ApiException.badRequest("Cancha no encontrada");
+            t.getCourts().add(c);
+        }
     }
 
     public Team addTeamTo(Tournament t, TeamInput input) {
         if (t.getTeams().size() >= MAX_TEAMS) throw ApiException.badRequest("Máximo " + MAX_TEAMS + " equipos");
         String name = input.name().trim();
-        boolean duplicated = t.getTeams().stream().anyMatch(other -> other.getName().equalsIgnoreCase(name));
-        if (duplicated) throw ApiException.badRequest("Ya hay un equipo llamado " + name);
+        if (t.getTeams().stream().anyMatch(other -> other.getName().equalsIgnoreCase(name))) {
+            throw ApiException.badRequest("Ya hay un equipo llamado " + name);
+        }
         Team team = new Team();
         team.setTournament(t);
         team.setName(name);
         team.setShortName(shortName(input.shortName(), name));
-        team.setColor(input.color() != null ? input.color().toUpperCase() : PALETTE[t.getTeams().size() % PALETTE.length]);
+        team.setColor(input.color() != null ? input.color().toUpperCase(Locale.ROOT) : PALETTE[t.getTeams().size() % PALETTE.length]);
         team.setSeed(t.getTeams().size() + 1);
         t.getTeams().add(team);
         return team;
@@ -323,14 +314,12 @@ public class TournamentService {
         if (t.getStatus() != TournamentStatus.DRAFT) throw ApiException.badRequest(message);
     }
 
-    private String uniqueSlug(String name) {
-        String base = normalize(name).replaceAll("[^a-z0-9]+", "-").replaceAll("(^-|-$)", "");
+    private String uniqueSlug(Organization o, String name) {
+        String base = OrgService.slugify(name);
         if (base.length() > 60) base = base.substring(0, 60).replaceAll("-$", "");
         if (base.isEmpty()) base = "torneo";
-        String slug;
-        do {
-            slug = base + "-" + randomCode(4);
-        } while (tournaments.existsBySlug(slug));
+        String slug = base;
+        while (tournaments.existsByOrganizationIdAndSlug(o.getId(), slug)) slug = base + "-" + randomCode(3);
         return slug;
     }
 
@@ -341,26 +330,14 @@ public class TournamentService {
         return sb.toString();
     }
 
-    static String normalize(String s) {
-        return Normalizer.normalize(s, Normalizer.Form.NFD).replaceAll("\\p{M}", "").toLowerCase(Locale.ROOT).trim();
-    }
-
-    private static String shortName(String requested, String name) {
+    static String shortName(String requested, String name) {
         if (requested != null && !requested.isBlank()) return requested.trim().toUpperCase(Locale.ROOT);
-        String[] words = normalize(name).toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9 ]", "").trim().split("\\s+");
-        String result = words.length >= 2
-                ? words.length >= 3 ? "" + words[0].charAt(0) + words[1].charAt(0) + words[2].charAt(0)
-                : words[0].substring(0, Math.min(2, words[0].length())) + words[1].charAt(0)
-                : words[0].substring(0, Math.min(3, words[0].length()));
+        String[] words = OrgService.slugify(name).toUpperCase(Locale.ROOT).split("-");
+        String result;
+        if (words.length >= 3) result = "" + words[0].charAt(0) + words[1].charAt(0) + words[2].charAt(0);
+        else if (words.length == 2 && !words[1].isEmpty()) result = words[0].substring(0, Math.min(2, words[0].length())) + words[1].charAt(0);
+        else result = words[0].substring(0, Math.min(3, words[0].length()));
         return result.isEmpty() ? "EQ" : result;
-    }
-
-    private static ZoneId zone(String id) {
-        try {
-            return id == null || id.isBlank() ? ZoneId.of("America/Bogota") : ZoneId.of(id);
-        } catch (DateTimeException e) {
-            return ZoneId.of("America/Bogota");
-        }
     }
 
     private static String blankToNull(String s) {

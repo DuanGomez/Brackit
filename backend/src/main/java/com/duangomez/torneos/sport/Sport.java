@@ -87,6 +87,16 @@ public enum Sport {
     public String participantLabel() { return participantLabel; }
     public List<EventType> events() { return events; }
 
+    /** Minutos de cancha por partido por defecto: juego, descansos y cambio de equipos. */
+    public int defaultBlockMinutes() {
+        return switch (this) {
+            case FUTBOL, TENIS -> 120;
+            case FUTBOL_SALA -> 60;
+            case BALONCESTO -> 105;
+            case BALONMANO, VOLEIBOL, PADEL -> 90;
+        };
+    }
+
     public boolean allowsDraw() {
         return scoring == ScoringType.GOALS;
     }

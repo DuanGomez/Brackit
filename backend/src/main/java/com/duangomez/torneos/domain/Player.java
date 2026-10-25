@@ -24,4 +24,7 @@ public class Player {
 
     @Column(name = "shirt_number")
     private Integer shirtNumber;
+
+    /** Documento de identidad: la planilla queda incompleta sin él. */
+    private String document;
 }

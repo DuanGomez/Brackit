@@ -11,7 +11,9 @@ import lombok.Setter;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "tournament")
@@ -24,10 +26,17 @@ public class Tournament {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** Identificador público para la URL (/t/{slug}) y para el ingreso de árbitros. */
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "organization_id")
+    private Organization organization;
+
+    /** Único dentro de la organización: /l/{org}/{slug}. */
     private String slug;
 
     private String name;
+
+    /** Categoría libre: "Mayores", "Sub-15", "Femenino". */
+    private String category;
 
     @Enumerated(EnumType.STRING)
     private Sport sport;
@@ -38,18 +47,11 @@ public class Tournament {
     @Enumerated(EnumType.STRING)
     private TournamentStatus status = TournamentStatus.DRAFT;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "owner_id")
-    private AppUser owner;
-
     private String description;
-
-    private String location;
 
     @Column(name = "start_date")
     private LocalDate startDate;
 
-    /** Liga a dos vueltas (ida y vuelta). */
     @Column(name = "double_round")
     private boolean doubleRound;
 
@@ -59,21 +61,37 @@ public class Tournament {
     @Column(name = "advance_per_group")
     private int advancePerGroup;
 
-    /** PIN de árbitros guardado con BCrypt: solo se muestra al generarlo. */
-    @Column(name = "referee_pin_hash")
-    private String refereePinHash;
+    /** Partido por el tercer puesto entre los perdedores de semifinales. */
+    @Column(name = "third_place")
+    private boolean thirdPlace;
+
+    /** Minutos que ocupa un partido en la cancha (juego + descansos + cambio de equipos). */
+    @Column(name = "block_minutes")
+    private int blockMinutes;
+
+    /** Horas mínimas entre dos partidos de un mismo equipo. */
+    @Column(name = "min_rest_hours")
+    private int minRestHours;
+
+    /** Días entre jornadas al programar. */
+    @Column(name = "days_between")
+    private int daysBetween = 7;
 
     @Column(name = "champion_team_id")
     private Long championTeamId;
-
-    /** Torneo de demostración: no se puede borrar y se reinicia solo. */
-    private boolean demo;
 
     @Column(name = "created_at")
     private Instant createdAt = Instant.now();
 
     @Column(name = "updated_at")
     private Instant updatedAt = Instant.now();
+
+    /** Canchas donde se puede programar este torneo. */
+    @ManyToMany
+    @JoinTable(name = "tournament_court",
+            joinColumns = @JoinColumn(name = "tournament_id"),
+            inverseJoinColumns = @JoinColumn(name = "court_id"))
+    private Set<Court> courts = new LinkedHashSet<>();
 
     @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("seed ASC")
@@ -88,7 +106,7 @@ public class Tournament {
         updatedAt = Instant.now();
     }
 
-    public boolean isOwnedBy(Long userId) {
-        return owner != null && owner.getId().equals(userId);
+    public boolean belongsTo(Organization org) {
+        return organization != null && organization.getId().equals(org.getId());
     }
 }

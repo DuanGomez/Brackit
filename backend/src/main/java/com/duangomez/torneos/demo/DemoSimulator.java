@@ -58,7 +58,7 @@ public class DemoSimulator {
 
     @Scheduled(fixedDelayString = "${app.demo.tick-ms}", initialDelayString = "${app.demo.tick-ms}")
     public void tick() {
-        List<Long> ids = tx.execute(s -> tournaments.findByDemoTrue().stream().map(Tournament::getId).toList());
+        List<Long> ids = tx.execute(s -> tournaments.findByOrganizationDemoTrue().stream().map(Tournament::getId).toList());
         for (Long id : ids) {
             try {
                 tx.executeWithoutResult(s -> tournaments.findById(id).ifPresent(this::advance));
@@ -93,12 +93,11 @@ public class DemoSimulator {
         Instant lastFinish = lastFinish(t);
         if (lastFinish != null && lastFinish.plus(PAUSE_BETWEEN_MATCHES).isAfter(now)) return;
         t.getMatches().stream()
-                .filter(m -> m.getStatus() == MatchStatus.SCHEDULED && m.hasBothTeams())
+                .filter(m -> m.getStatus() == MatchStatus.SCHEDULED && m.hasBothTeams() && m.isPlaced())
                 .min(Comparator.comparing(Match::getScheduledAt, Comparator.nullsLast(Comparator.naturalOrder()))
                         .thenComparing(Match::getId))
                 .ifPresent(m -> {
                     m.setClockSpeed(MatchSimulator.liveClockSpeed(t.getSport()));
-                    m.setScheduledAt(now);
                     rules.start(m, now);
                     broadcaster.matchChanged(m, false);
                 });

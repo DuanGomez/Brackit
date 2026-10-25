@@ -2,13 +2,17 @@ package com.duangomez.torneos.service;
 
 import com.duangomez.torneos.domain.*;
 import com.duangomez.torneos.domain.Enums.MatchStatus;
+import com.duangomez.torneos.domain.Enums.MembershipStatus;
 import com.duangomez.torneos.domain.Enums.Stage;
+import com.duangomez.torneos.engine.ConflictChecker.Conflict;
 import com.duangomez.torneos.repo.MatchRepository;
+import com.duangomez.torneos.repo.MembershipRepository;
 import com.duangomez.torneos.security.AuthPrincipal;
 import com.duangomez.torneos.sport.EventType;
 import com.duangomez.torneos.sport.ScoringType;
 import com.duangomez.torneos.sport.Sport;
 import com.duangomez.torneos.web.ApiException;
+import com.duangomez.torneos.web.ConflictException;
 import com.duangomez.torneos.web.Dtos.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,62 +23,163 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * Operación de un partido en vivo. Cada método valida permisos y reglas del deporte,
- * actualiza el marcador y deja que {@link LiveBroadcaster} lo publique al confirmar.
+ * Operación de los partidos: programarlos en cancha y hora, asignar árbitro, cancelarlos y
+ * llevarlos en vivo. Cada método valida la organización, el rol y las reglas del deporte, y
+ * deja que {@link LiveBroadcaster} publique el cambio al confirmar.
  */
 @Service
 public class MatchService {
 
     private final MatchRepository matches;
+    private final MembershipRepository memberships;
     private final TournamentProgress progress;
     private final LiveBroadcaster broadcaster;
+    private final SchedulingService scheduling;
+    private final VenueService venues;
+    private final OrgAccess access;
 
-    public MatchService(MatchRepository matches, TournamentProgress progress, LiveBroadcaster broadcaster) {
+    public MatchService(MatchRepository matches, MembershipRepository memberships, TournamentProgress progress,
+                        LiveBroadcaster broadcaster, SchedulingService scheduling, VenueService venues, OrgAccess access) {
         this.matches = matches;
+        this.memberships = memberships;
         this.progress = progress;
         this.broadcaster = broadcaster;
+        this.scheduling = scheduling;
+        this.venues = venues;
+        this.access = access;
+    }
+
+    @Transactional(readOnly = true)
+    public MatchDetailDto get(String org, Long matchId, AuthPrincipal principal) {
+        Membership me = access.require(org, principal);
+        return TournamentViews.detail(inOrg(me.getOrganization(), matchId));
+    }
+
+    // ---------- Programación ----------
+
+    /** Choques que tendría el partido en esa cancha y hora (sin guardar nada). */
+    @Transactional(readOnly = true)
+    public List<ConflictDto> check(String org, Long matchId, PlaceRequest req, AuthPrincipal principal) {
+        Membership me = access.requireManager(org, principal);
+        Match m = inOrg(me.getOrganization(), matchId);
+        Court court = venues.courtOf(me.getOrganization(), req.courtId());
+        return conflicts(scheduling.check(m, court, req.startsAt()));
+    }
+
+    /** Mueve el partido a una cancha y hora. Si hay choques, no guarda salvo que se confirme con {@code force}. */
+    @Transactional
+    public MatchCardDto place(String org, Long matchId, PlaceRequest req, AuthPrincipal principal) {
+        Membership me = access.requireManager(org, principal);
+        Match m = inOrg(me.getOrganization(), matchId);
+        if (m.getStatus() != MatchStatus.SCHEDULED) throw ApiException.badRequest("Solo se reprograman partidos sin empezar");
+        Court court = venues.courtOf(me.getOrganization(), req.courtId());
+        List<Conflict> found = scheduling.check(m, court, req.startsAt());
+        if (!found.isEmpty() && !req.force()) throw new ConflictException(conflicts(found));
+        m.setCourt(court);
+        m.setScheduledAt(req.startsAt());
+        matches.flush();
+        broadcaster.matchChanged(m, false);
+        return TournamentViews.card(m);
+    }
+
+    /** Devuelve el partido a "sin programar". */
+    @Transactional
+    public MatchCardDto unplace(String org, Long matchId, AuthPrincipal principal) {
+        Membership me = access.requireManager(org, principal);
+        Match m = inOrg(me.getOrganization(), matchId);
+        if (m.getStatus() != MatchStatus.SCHEDULED) throw ApiException.badRequest("Solo se desprograman partidos sin empezar");
+        m.setCourt(null);
+        m.setScheduledAt(null);
+        broadcaster.matchChanged(m, false);
+        return TournamentViews.card(m);
+    }
+
+    /** Asigna (o quita, con null) el árbitro: debe ser miembro activo de la organización. */
+    @Transactional
+    public MatchCardDto assignReferee(String org, Long matchId, RefereeRequest req, AuthPrincipal principal) {
+        Membership me = access.requireManager(org, principal);
+        Match m = inOrg(me.getOrganization(), matchId);
+        if (req.refereeUserId() == null) {
+            m.setReferee(null);
+        } else {
+            Membership ref = memberships.findByOrganizationIdAndUserIdAndStatus(me.getOrganization().getId(),
+                            req.refereeUserId(), MembershipStatus.ACTIVE)
+                    .orElseThrow(() -> ApiException.badRequest("Esa persona no es miembro de la organización"));
+            m.setReferee(ref.getUser());
+        }
+        broadcaster.matchChanged(m, false);
+        return TournamentViews.card(m);
     }
 
     @Transactional
-    public MatchDetailDto start(Long matchId, AuthPrincipal principal) {
-        Match m = operable(matchId, principal);
+    public MatchCardDto cancel(String org, Long matchId, CancelRequest req, AuthPrincipal principal) {
+        Membership me = access.requireManager(org, principal);
+        Match m = inOrg(me.getOrganization(), matchId);
+        if (m.getStatus() != MatchStatus.SCHEDULED) throw ApiException.badRequest("Solo se cancelan partidos sin empezar");
+        if (m.getStage() == Stage.KNOCKOUT || m.getStage() == Stage.THIRD_PLACE) {
+            throw ApiException.badRequest("En eliminación directa no se cancela: reprograma el partido");
+        }
+        m.setStatus(MatchStatus.CANCELLED);
+        m.setCancelReason(req == null || req.reason() == null || req.reason().isBlank() ? null : req.reason().trim());
+        boolean structural = progress.onFinished(m, null);
+        matches.flush();
+        broadcaster.matchChanged(m, structural);
+        return TournamentViews.card(m);
+    }
+
+    /** Vuelve a dejar programado un partido cancelado. */
+    @Transactional
+    public MatchCardDto restore(String org, Long matchId, AuthPrincipal principal) {
+        Membership me = access.requireManager(org, principal);
+        Match m = inOrg(me.getOrganization(), matchId);
+        if (m.getStatus() != MatchStatus.CANCELLED) throw ApiException.badRequest("El partido no está cancelado");
+        m.setStatus(MatchStatus.SCHEDULED);
+        m.setCancelReason(null);
+        broadcaster.matchChanged(m, false);
+        return TournamentViews.card(m);
+    }
+
+    // ---------- En vivo ----------
+
+    @Transactional
+    public MatchDetailDto start(String org, Long matchId, AuthPrincipal principal) {
+        Match m = operable(org, matchId, principal);
         start(m, Instant.now());
         return publish(m, false);
     }
 
     @Transactional
-    public MatchDetailDto addEvent(Long matchId, EventRequest req, AuthPrincipal principal) {
-        Match m = operable(matchId, principal);
-        EventType type = parseType(req.type());
-        addEvent(m, type, req.teamId(), req.playerId(), Instant.now());
+    public MatchDetailDto addEvent(String org, Long matchId, EventRequest req, AuthPrincipal principal) {
+        Match m = operable(org, matchId, principal);
+        addEvent(m, parseType(req.type()), req.teamId(), req.playerId(), Instant.now());
         return publish(m, false);
     }
 
     @Transactional
-    public MatchDetailDto addPoint(Long matchId, PointRequest req, AuthPrincipal principal) {
-        Match m = operable(matchId, principal);
+    public MatchDetailDto addPoint(String org, Long matchId, PointRequest req, AuthPrincipal principal) {
+        Match m = operable(org, matchId, principal);
         boolean finished = addPoint(m, req.teamId(), Instant.now());
         boolean structural = finished && progress.onFinished(m, null);
         return publish(m, structural);
     }
 
     @Transactional
-    public MatchDetailDto nextPeriod(Long matchId, AuthPrincipal principal) {
-        Match m = operable(matchId, principal);
+    public MatchDetailDto nextPeriod(String org, Long matchId, AuthPrincipal principal) {
+        Match m = operable(org, matchId, principal);
         nextPeriod(m, Instant.now());
         return publish(m, false);
     }
 
     @Transactional
-    public MatchDetailDto undo(Long matchId, AuthPrincipal principal) {
-        Match m = operable(matchId, principal);
+    public MatchDetailDto undo(String org, Long matchId, AuthPrincipal principal) {
+        Match m = operable(org, matchId, principal);
         undoLast(m);
         return publish(m, false);
     }
 
     @Transactional
-    public MatchDetailDto finish(Long matchId, FinishRequest req, AuthPrincipal principal) {
-        Match m = operable(matchId, principal);
+    public MatchDetailDto finish(String org, Long matchId, FinishRequest req, AuthPrincipal principal) {
+        Match m = operable(org, matchId, principal);
         finish(m, req == null ? null : req.homePenalties(), req == null ? null : req.awayPenalties(), Instant.now());
         boolean structural = progress.onFinished(m, null);
         return publish(m, structural);
@@ -82,9 +187,9 @@ public class MatchService {
 
     /** Resultado cargado a mano (partido sin seguimiento en vivo) o corrección de uno terminado. */
     @Transactional
-    public MatchDetailDto setResult(Long matchId, ResultRequest req, AuthPrincipal principal) {
-        Match m = find(matchId);
-        Access.requireOwner(m.getTournament(), principal);
+    public MatchDetailDto setResult(String org, Long matchId, ResultRequest req, AuthPrincipal principal) {
+        Membership me = access.requireManager(org, principal);
+        Match m = inOrg(me.getOrganization(), matchId);
         Long previousWinner = m.getStatus() == MatchStatus.FINISHED ? m.getWinnerTeamId() : null;
         applyResult(m, req, Instant.now());
         boolean structural = progress.onFinished(m, previousWinner);
@@ -94,6 +199,7 @@ public class MatchService {
     // ---------- Reglas (también las usa el simulador de la demo) ----------
 
     public void start(Match m, Instant now) {
+        if (m.getStatus() == MatchStatus.CANCELLED) throw ApiException.badRequest("El partido está cancelado");
         if (m.getStatus() != MatchStatus.SCHEDULED) throw ApiException.badRequest("El partido ya empezó");
         if (!m.hasBothTeams()) throw ApiException.badRequest("Este cruce aún no tiene los dos rivales");
         m.setStatus(MatchStatus.LIVE);
@@ -215,7 +321,8 @@ public class MatchService {
 
     void applyResult(Match m, ResultRequest req, Instant now) {
         Sport sport = sport(m);
-        if (m.getStatus() == MatchStatus.LIVE) throw ApiException.badRequest("El partido está en vivo: usa el panel de árbitro");
+        if (m.getStatus() == MatchStatus.LIVE) throw ApiException.badRequest("El partido está en vivo: usa la consola de árbitro");
+        if (m.getStatus() == MatchStatus.CANCELLED) throw ApiException.badRequest("El partido está cancelado");
         if (!m.hasBothTeams() || m.isBye()) throw ApiException.badRequest("Este cruce aún no tiene los dos rivales");
         if (m.getStage() == Stage.GROUP && m.getTournament().getMatches().stream().anyMatch(x -> x.getStage() == Stage.KNOCKOUT)) {
             throw ApiException.badRequest("La fase de grupos ya está cerrada");
@@ -257,6 +364,7 @@ public class MatchService {
         closeMatch(m, winner, now);
     }
 
+
     // ---------- Apoyo ----------
 
     private Long decideWinner(Match m, Sport sport, int home, int away, Integer homePen, Integer awayPen) {
@@ -266,7 +374,7 @@ public class MatchService {
         if (sport.scoring() == ScoringType.POINTS) {
             throw ApiException.badRequest("En baloncesto no hay empates: juega la prórroga");
         }
-        if (m.getStage() != Stage.KNOCKOUT) return null; // empate válido en liga y grupos
+        if (m.getStage() != Stage.KNOCKOUT && m.getStage() != Stage.THIRD_PLACE) return null; // empate válido en liga y grupos
         if (homePen == null || awayPen == null || homePen < 0 || awayPen < 0 || homePen.equals(awayPen)) {
             throw ApiException.badRequest("Es eliminación directa: registra el resultado de los penales");
         }
@@ -325,18 +433,26 @@ public class MatchService {
         }
     }
 
-    private Match find(Long id) {
-        return matches.findById(id).orElseThrow(() -> ApiException.notFound("Partido no encontrado"));
+    private static List<ConflictDto> conflicts(List<Conflict> found) {
+        return found.stream().map(c -> new ConflictDto(c.type().name(), c.message())).toList();
     }
 
-    private Match operable(Long id, AuthPrincipal principal) {
-        Match m = find(id);
-        Access.requireOperator(m.getTournament(), principal);
+    private Match inOrg(Organization org, Long id) {
+        Match m = matches.findById(id).orElseThrow(() -> ApiException.notFound("Partido no encontrado"));
+        OrgAccess.sameOrg(m, org);
+        return m;
+    }
+
+    /** Administrador, coordinador o el árbitro del partido (o cualquier árbitro si no tiene asignado). */
+    private Match operable(String org, Long id, AuthPrincipal principal) {
+        Membership me = access.require(org, principal);
+        Match m = inOrg(me.getOrganization(), id);
+        OrgAccess.canOperate(m, me);
         return m;
     }
 
     private MatchDetailDto publish(Match m, boolean structural) {
-        matches.saveAndFlush(m);
+        matches.flush();
         broadcaster.matchChanged(m, structural);
         return TournamentViews.detail(m);
     }

@@ -10,9 +10,9 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/** Panel del organizador: sus torneos, equipos, jugadores, calendario y PIN de árbitros. */
+/** Torneos de una organización, sus equipos, jugadores y calendario. */
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/orgs/{org}")
 public class TournamentController {
 
     private final TournamentService service;
@@ -22,70 +22,80 @@ public class TournamentController {
     }
 
     @GetMapping("/tournaments")
-    public List<TournamentCardDto> mine(@AuthenticationPrincipal AuthPrincipal me) {
-        return service.listMine(me);
+    public List<TournamentCardDto> list(@PathVariable String org, @AuthenticationPrincipal AuthPrincipal me) {
+        return service.list(org, me);
     }
 
     @PostMapping("/tournaments")
     @ResponseStatus(HttpStatus.CREATED)
-    public TournamentDto create(@Valid @RequestBody CreateTournamentRequest req, @AuthenticationPrincipal AuthPrincipal me) {
-        return service.create(req, me);
+    public TournamentDto create(@PathVariable String org, @Valid @RequestBody CreateTournamentRequest req,
+                                @AuthenticationPrincipal AuthPrincipal me) {
+        return service.create(org, req, me);
     }
 
     @GetMapping("/tournaments/{id}")
-    public TournamentDto get(@PathVariable Long id, @AuthenticationPrincipal AuthPrincipal me) {
-        return service.getForOwner(id, me);
+    public TournamentDto get(@PathVariable String org, @PathVariable Long id, @AuthenticationPrincipal AuthPrincipal me) {
+        return service.get(org, id, me);
     }
 
     @PutMapping("/tournaments/{id}")
-    public TournamentDto update(@PathVariable Long id, @Valid @RequestBody UpdateTournamentRequest req,
+    public TournamentDto update(@PathVariable String org, @PathVariable Long id, @Valid @RequestBody UpdateTournamentRequest req,
                                 @AuthenticationPrincipal AuthPrincipal me) {
-        return service.update(id, req, me);
+        return service.update(org, id, req, me);
     }
 
     @DeleteMapping("/tournaments/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable Long id, @AuthenticationPrincipal AuthPrincipal me) {
-        service.delete(id, me);
+    public void delete(@PathVariable String org, @PathVariable Long id, @AuthenticationPrincipal AuthPrincipal me) {
+        service.delete(org, id, me);
+    }
+
+    @PostMapping("/tournaments/{id}/schedule")
+    public ScheduleResult schedule(@PathVariable String org, @PathVariable Long id, @Valid @RequestBody ScheduleRequest req,
+                                   @AuthenticationPrincipal AuthPrincipal me) {
+        return service.generateSchedule(org, id, req, me);
+    }
+
+    @PostMapping("/tournaments/{id}/place-pending")
+    public ScheduleResult placePending(@PathVariable String org, @PathVariable Long id, @AuthenticationPrincipal AuthPrincipal me) {
+        return service.placePending(org, id, me);
     }
 
     @PostMapping("/tournaments/{id}/teams")
     @ResponseStatus(HttpStatus.CREATED)
-    public TeamDto addTeam(@PathVariable Long id, @Valid @RequestBody TeamInput req, @AuthenticationPrincipal AuthPrincipal me) {
-        return service.addTeam(id, req, me);
+    public TeamDto addTeam(@PathVariable String org, @PathVariable Long id, @Valid @RequestBody TeamInput req,
+                           @AuthenticationPrincipal AuthPrincipal me) {
+        return service.addTeam(org, id, req, me);
     }
 
     @PutMapping("/teams/{id}")
-    public TeamDto updateTeam(@PathVariable Long id, @Valid @RequestBody TeamInput req, @AuthenticationPrincipal AuthPrincipal me) {
-        return service.updateTeam(id, req, me);
+    public TeamDto updateTeam(@PathVariable String org, @PathVariable Long id, @Valid @RequestBody TeamInput req,
+                              @AuthenticationPrincipal AuthPrincipal me) {
+        return service.updateTeam(org, id, req, me);
     }
 
     @DeleteMapping("/teams/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteTeam(@PathVariable Long id, @AuthenticationPrincipal AuthPrincipal me) {
-        service.deleteTeam(id, me);
+    public void deleteTeam(@PathVariable String org, @PathVariable Long id, @AuthenticationPrincipal AuthPrincipal me) {
+        service.deleteTeam(org, id, me);
     }
 
     @PostMapping("/teams/{id}/players")
     @ResponseStatus(HttpStatus.CREATED)
-    public PlayerDto addPlayer(@PathVariable Long id, @Valid @RequestBody PlayerInput req, @AuthenticationPrincipal AuthPrincipal me) {
-        return service.addPlayer(id, req, me);
+    public PlayerDto addPlayer(@PathVariable String org, @PathVariable Long id, @Valid @RequestBody PlayerInput req,
+                               @AuthenticationPrincipal AuthPrincipal me) {
+        return service.addPlayer(org, id, req, me);
+    }
+
+    @PutMapping("/players/{id}")
+    public PlayerDto updatePlayer(@PathVariable String org, @PathVariable Long id, @Valid @RequestBody PlayerInput req,
+                                  @AuthenticationPrincipal AuthPrincipal me) {
+        return service.updatePlayer(org, id, req, me);
     }
 
     @DeleteMapping("/players/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deletePlayer(@PathVariable Long id, @AuthenticationPrincipal AuthPrincipal me) {
-        service.deletePlayer(id, me);
-    }
-
-    @PostMapping("/tournaments/{id}/schedule")
-    public TournamentDto schedule(@PathVariable Long id, @Valid @RequestBody ScheduleRequest req,
-                                  @AuthenticationPrincipal AuthPrincipal me) {
-        return service.generateSchedule(id, req, me);
-    }
-
-    @PostMapping("/tournaments/{id}/referee-pin")
-    public PinResponse pin(@PathVariable Long id, @AuthenticationPrincipal AuthPrincipal me) {
-        return service.regeneratePin(id, me);
+    public void deletePlayer(@PathVariable String org, @PathVariable Long id, @AuthenticationPrincipal AuthPrincipal me) {
+        service.deletePlayer(org, id, me);
     }
 }

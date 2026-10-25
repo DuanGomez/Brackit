@@ -9,20 +9,11 @@ import com.duangomez.torneos.engine.BracketGenerator;
 import com.duangomez.torneos.engine.FixtureGenerator;
 import com.duangomez.torneos.engine.FixtureGenerator.Pairing;
 
-import java.time.*;
+import java.time.Instant;
 import java.util.*;
 
-/** Convierte los cruces del motor en partidos y les asigna fecha, hora y sede. */
+/** Convierte los cruces del motor en partidos. La cancha y la hora las asigna {@link SchedulingService}. */
 public final class ScheduleBuilder {
-
-    /** Cómo repartir las fechas: un día por jornada y varios partidos por día. */
-    public record Plan(LocalDate startDate, LocalTime firstMatchTime, int daysBetweenRounds,
-                       int minutesBetweenMatches, List<String> venues, ZoneId zone) {
-
-        public Plan {
-            venues = venues == null ? List.of() : venues.stream().filter(v -> v != null && !v.isBlank()).toList();
-        }
-    }
 
     private ScheduleBuilder() {
     }
@@ -43,8 +34,8 @@ public final class ScheduleBuilder {
     }
 
     /**
-     * Crea todas las rondas de la llave. Las de la primera ronda con "bye" quedan terminadas
-     * y su equipo ya aparece en la ronda siguiente.
+     * Crea todas las rondas de la llave (y el tercer puesto si el torneo lo pide). Las de la
+     * primera ronda con "bye" quedan terminadas y su equipo ya aparece en la ronda siguiente.
      */
     public static List<Match> knockout(Tournament t, List<BracketGenerator.Slot> firstRound, Map<Long, Team> teams) {
         int totalRounds = Integer.numberOfTrailingZeros(firstRound.size() * 2);
@@ -58,6 +49,11 @@ public final class ScheduleBuilder {
                 byPosition.put(round + ":" + pos, m);
                 result.add(m);
             }
+        }
+        if (t.isThirdPlace() && totalRounds >= 2) {
+            Match third = newMatch(t, Stage.THIRD_PLACE, totalRounds);
+            third.setBracketPosition(0);
+            result.add(third);
         }
         for (BracketGenerator.Slot slot : firstRound) {
             Match m = byPosition.get("1:" + slot.position());
@@ -75,33 +71,10 @@ public final class ScheduleBuilder {
         return result;
     }
 
-    /** El ganador de la posición {@code fromPosition} ocupa local (par) o visitante (impar) del siguiente cruce. */
+    /** El equipo que viene de la posición {@code fromPosition} ocupa local (par) o visitante (impar). */
     public static void placeInSlot(Match next, int fromPosition, Team team) {
         if (fromPosition % 2 == 0) next.setHome(team);
         else next.setAway(team);
-    }
-
-    /**
-     * Fechas por jornada: todos los partidos de la jornada el mismo día; con varias sedes
-     * se juegan en paralelo y si no, uno tras otro separados por {@code minutesBetweenMatches}.
-     * Los "bye" no ocupan horario.
-     */
-    public static void assignDates(List<Match> matches, Plan plan, int roundOffset) {
-        Map<Integer, List<Match>> byRound = new TreeMap<>();
-        for (Match m : matches) {
-            if (!m.isBye()) byRound.computeIfAbsent(m.getRoundNumber(), r -> new ArrayList<>()).add(m);
-        }
-        int venues = Math.max(1, plan.venues().size());
-        for (var entry : byRound.entrySet()) {
-            LocalDate day = plan.startDate().plusDays((long) (entry.getKey() - 1 + roundOffset) * plan.daysBetweenRounds());
-            List<Match> round = entry.getValue();
-            for (int i = 0; i < round.size(); i++) {
-                LocalDateTime when = LocalDateTime.of(day, plan.firstMatchTime())
-                        .plusMinutes((long) (i / venues) * plan.minutesBetweenMatches());
-                round.get(i).setScheduledAt(when.atZone(plan.zone()).toInstant());
-                if (!plan.venues().isEmpty()) round.get(i).setVenue(plan.venues().get(i % venues));
-            }
-        }
     }
 
     private static Match newMatch(Tournament t, Stage stage, int round) {
